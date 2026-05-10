@@ -1,5 +1,4 @@
-[phases.setup]
-nixPkgs = ["bun"]
+providers = ["bun"]
 
 [phases.install]
 cmds = ["bun install --no-frozen-lockfile"]
@@ -8,4 +7,4 @@ cmds = ["bun install --no-frozen-lockfile"]
 cmds = ["bun run build"]
 
 [start]
-cmd = "bun run start"
+cmd = "bun run server.ts"
