@@ -1,8 +1,4 @@
-[build]
-dockerfilePath = "Dockerfile"
-
 [deploy]
-startCommand = "cd packages/web && bun run server.ts"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
