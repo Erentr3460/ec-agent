@@ -1,11 +1,11 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "bun"]
+nixPkgs = ["bun"]
 
 [phases.install]
-cmds = ["bun install"]
+cmds = ["bun install --no-frozen-lockfile"]
 
 [phases.build]
-cmds = ["cd packages/web && bun run build:prod"]
+cmds = ["bun run build"]
 
 [start]
-cmd = "cd packages/web && bun run server.ts"
+cmd = "bun run start"
