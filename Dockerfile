@@ -9,7 +9,7 @@ COPY package.json bun.lock ./
 COPY packages/web ./packages/web
 
 # Install all dependencies
-RUN bun install --frozen-lockfile
+RUN bun install
 
 # Build frontend (vite)
 WORKDIR /app/packages/web
