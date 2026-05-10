@@ -1,7 +1,8 @@
 import { Link, useLocation } from "wouter";
+import { useState } from "react";
 import {
   Bot, LayoutDashboard, Settings, Zap,
-  FileText, Search, TrendingDown, ImageIcon
+  FileText, Search, TrendingDown, ImageIcon, Menu, X
 } from "lucide-react";
 
 const navItems = [
@@ -15,58 +16,109 @@ const navItems = [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const SidebarContent = () => (
+    <>
+      {/* Logo */}
+      <div className="p-5 border-b" style={{ borderColor: "var(--border)" }}>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center relative" style={{ background: "linear-gradient(135deg, #7c3aed, #06d6a0)" }}>
+            <Bot size={18} className="text-white" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-400 border-2" style={{ borderColor: "var(--surface)" }}></span>
+          </div>
+          <div>
+            <h1 className="text-sm font-bold tracking-wider" style={{ fontFamily: "Syne, sans-serif", color: "var(--text)" }}>EÇ AGENT</h1>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>AI Görev Merkezi</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 p-3 space-y-1">
+        {navItems.map(({ path, icon: Icon, label, color }) => {
+          const active = location === path;
+          return (
+            <Link key={path} to={path}>
+              <div
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all"
+                style={{
+                  background: active ? "rgba(124,58,237,0.15)" : "transparent",
+                  borderLeft: active ? `2px solid ${color || "#7c3aed"}` : "2px solid transparent",
+                  color: active ? "var(--text)" : "var(--text-muted)",
+                }}
+              >
+                <Icon size={16} style={{ color: active ? (color || "#7c3aed") : "inherit" }} />
+                <span className="text-sm font-medium">{label}</span>
+              </div>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div className="p-4 border-t" style={{ borderColor: "var(--border)" }}>
+        <div className="flex items-center gap-2">
+          <Zap size={14} style={{ color: "#7c3aed" }} />
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>GPT-4o Aktif</span>
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <div className="flex min-h-screen mesh-bg">
-      {/* Sidebar */}
-      <aside className="w-60 flex-shrink-0 border-r flex flex-col" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-        {/* Logo */}
-        <div className="p-5 border-b" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center relative" style={{ background: "linear-gradient(135deg, #7c3aed, #06d6a0)" }}>
-              <Bot size={18} className="text-white" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-400 border-2" style={{ borderColor: "var(--surface)" }}></span>
-            </div>
-            <div>
-              <h1 className="text-sm font-bold tracking-wider" style={{ fontFamily: "Syne, sans-serif", color: "var(--text)" }}>EÇ AGENT</h1>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>AI Görev Merkezi</p>
-            </div>
-          </div>
-        </div>
 
-        {/* Nav */}
-        <nav className="flex-1 p-3 space-y-1">
-          {navItems.map(({ path, icon: Icon, label, color }) => {
-            const active = location === path;
-            return (
-              <Link key={path} to={path}>
-                <div
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all"
-                  style={{
-                    background: active ? "rgba(124,58,237,0.15)" : "transparent",
-                    borderLeft: active ? `2px solid ${color || "#7c3aed"}` : "2px solid transparent",
-                    color: active ? "var(--text)" : "var(--text-muted)",
-                  }}
-                >
-                  <Icon size={16} style={{ color: active ? (color || "#7c3aed") : "inherit" }} />
-                  <span className="text-sm font-medium">{label}</span>
-                </div>
-              </Link>
-            );
-          })}
-        </nav>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-        {/* Footer */}
-        <div className="p-4 border-t" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-2">
-            <Zap size={14} style={{ color: "#7c3aed" }} />
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>GPT-4o Aktif</span>
-          </div>
-        </div>
+      {/* Sidebar — desktop: always visible, mobile: slide in */}
+      <aside
+        className={`
+          fixed md:static z-50 md:z-auto
+          w-64 h-full md:h-auto min-h-screen
+          flex flex-col flex-shrink-0 border-r
+          transition-transform duration-300
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+        `}
+        style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+      >
+        {/* Mobile close button */}
+        <button
+          className="absolute top-4 right-4 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+          style={{ color: "var(--text-muted)" }}
+        >
+          <X size={20} />
+        </button>
+
+        <SidebarContent />
       </aside>
 
       {/* Main */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto min-w-0">
+        {/* Mobile top bar */}
+        <div
+          className="flex items-center gap-3 p-4 border-b md:hidden sticky top-0 z-30"
+          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+        >
+          <button onClick={() => setSidebarOpen(true)} style={{ color: "var(--text-muted)" }}>
+            <Menu size={22} />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg, #7c3aed, #06d6a0)" }}>
+              <Bot size={14} className="text-white" />
+            </div>
+            <span className="text-sm font-bold" style={{ fontFamily: "Syne, sans-serif", color: "var(--text)" }}>EÇ AGENT</span>
+          </div>
+        </div>
+
         {children}
       </main>
     </div>
