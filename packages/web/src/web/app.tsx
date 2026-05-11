@@ -6,12 +6,14 @@ import SeoPage from "./pages/seo";
 import PricePage from "./pages/price";
 import ImagePage from "./pages/image-gen";
 import SettingsPage from "./pages/settings";
+import ChatPage from "./pages/chat";
 
 function App() {
   return (
     <Layout>
       <Switch>
         <Route path="/" component={DashboardPage} />
+        <Route path="/chat" component={ChatPage} />
         <Route path="/blog" component={BlogPage} />
         <Route path="/seo" component={SeoPage} />
         <Route path="/price" component={PricePage} />

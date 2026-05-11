@@ -2,11 +2,12 @@ import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import {
   Bot, LayoutDashboard, Settings, Zap,
-  FileText, Search, TrendingDown, ImageIcon, Menu, X
+  FileText, Search, TrendingDown, ImageIcon, Menu, X, MessageCircle
 } from "lucide-react";
 
 const navItems = [
   { path: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { path: "/chat", icon: MessageCircle, label: "Chat", color: "#7c3aed" },
   { path: "/blog", icon: FileText, label: "Blog Yazarı", color: "#7c3aed" },
   { path: "/seo", icon: Search, label: "SEO Analizi", color: "#06d6a0" },
   { path: "/price", icon: TrendingDown, label: "Fiyat Takibi", color: "#f59e0b" },
