@@ -88,3 +88,39 @@ h1, h2, h3, h4, h5 {
     radial-gradient(ellipse at 80% 100%, rgba(6, 214, 160, 0.08) 0%, transparent 50%),
     var(--bg);
 }
+
+/* ── Chat / Markdown styles ─────────────────────────────── */
+.md-content { line-height: 1.7; color: #e5e5e5; }
+.md-p { margin: 0 0 0.75em 0; }
+.md-p:last-child { margin-bottom: 0; }
+.md-h1 { font-size: 1.25em; font-weight: 700; margin: 1em 0 0.5em; color: #fff; }
+.md-h2 { font-size: 1.1em; font-weight: 600; margin: 0.9em 0 0.4em; color: #fff; }
+.md-h3 { font-size: 1em; font-weight: 600; margin: 0.8em 0 0.3em; color: #ddd; }
+.md-hr { border: none; border-top: 1px solid #2a2a2a; margin: 1em 0; }
+.md-ul, .md-ol { margin: 0.5em 0; padding-left: 1.5em; }
+.md-li, .md-oli { margin: 0.2em 0; color: #ddd; }
+.md-link { color: #818cf8; text-decoration: underline; }
+.md-link:hover { color: #a5b4fc; }
+.md-img { max-width: 100%; border-radius: 10px; margin: 0.5em 0; border: 1px solid #2a2a2a; }
+code.md-inline-code {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+  font-family: 'Fira Code', 'Menlo', monospace;
+  font-size: 0.85em;
+  color: #f472b6;
+}
+pre.md-code {
+  background: #0a0a0a;
+  border: 1px solid #1e1e1e;
+  border-radius: 10px;
+  padding: 1em 1.2em;
+  overflow-x: auto;
+  margin: 0.75em 0;
+  font-family: 'Fira Code', 'Menlo', monospace;
+  font-size: 0.82em;
+  line-height: 1.6;
+  color: #cdd6f4;
+}
+pre.md-code code { background: none; border: none; padding: 0; color: inherit; font-size: inherit; }
