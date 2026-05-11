@@ -20,7 +20,8 @@ export default function DashboardPage() {
   const errors = tasks.filter((t: any) => t.status === "error").length;
 
   const agents = [
-    { label: "Blog Yazarı", path: "/blog", color: "#7c3aed", desc: "SEO uyumlu blog içeriği" },
+    { label: "Chat", path: "/chat", color: "#7c3aed", desc: "GPT-4o ile sohbet et" },
+    { label: "Blog Yazarı", path: "/blog", color: "#6d28d9", desc: "SEO uyumlu blog içeriği" },
     { label: "SEO Analizi", path: "/seo", color: "#06d6a0", desc: "1. sıraya çıkma stratejisi" },
     { label: "Fiyat Takibi", path: "/price", color: "#f59e0b", desc: "Trendyol / Amazon takibi" },
     { label: "Görsel Üretici", path: "/image", color: "#10b981", desc: "AI ile görsel üret" },
