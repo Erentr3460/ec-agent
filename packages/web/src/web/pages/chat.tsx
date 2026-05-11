@@ -1,808 +1,804 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Send, Mic, MicOff, Paperclip, X, Bot, User, Trash2,
-  Plus, MessageSquare, ChevronLeft, ChevronRight, Image,
-  Copy, Check, Sparkles, FileText, Settings2, ChevronDown,
-  Download, Search
+  Plus, MessageSquare, ChevronLeft, Image as ImageIcon,
+  Copy, Check, Sparkles, FileText, ChevronDown,
+  Download, Search, MoreHorizontal, ArrowLeft, Zap,
+  Code, Globe, PenTool, BarChart3, Hash
 } from "lucide-react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface MessagePart {
+/* ─────────── Types ─────────── */
+interface Part {
   type: "text" | "image_url" | "file";
   text?: string;
   image_url?: { url: string };
   fileName?: string;
-  fileType?: string;
 }
-
-interface Message {
+interface Msg {
   id: string;
   role: "user" | "assistant";
-  content: string | MessagePart[];
-  timestamp: number;
+  content: string | Part[];
+  ts: number;
   model?: string;
   imageUrl?: string;
-  error?: boolean;
+  err?: boolean;
 }
-
-interface Conversation {
+interface Conv {
   id: string;
   title: string;
-  messages: Message[];
+  msgs: Msg[];
   createdAt: number;
   updatedAt: number;
-  model: string;
 }
+type ModelId = "gpt-4o" | "gpt-4o-mini" | "gemini-2.5-flash" | "claude-3.5-sonnet" | "claude-3.5-haiku";
 
-type Model = {
-  id: string;
-  label: string;
-  desc: string;
-  color: string;
-  vision: boolean;
-};
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-const MODELS: Model[] = [
-  { id: "gpt-4o", label: "GPT-4o", desc: "OpenAI · En güçlü", color: "#10a37f", vision: true },
-  { id: "gpt-4o-mini", label: "GPT-4o mini", desc: "OpenAI · Hızlı & ucuz", color: "#10a37f", vision: false },
-  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", desc: "Google · Hızlı vision", color: "#4285f4", vision: true },
-  { id: "claude-3.5-sonnet", label: "Claude Sonnet", desc: "Anthropic · Analiz uzmanı", color: "#d97706", vision: false },
-  { id: "claude-3.5-haiku", label: "Claude Haiku", desc: "Anthropic · Hızlı", color: "#d97706", vision: false },
+/* ─────────── Constants ─────────── */
+const MODELS = [
+  { id: "gpt-4o" as ModelId,          label: "GPT-4o",           sub: "OpenAI",     color: "#10a37f", dot: "#10a37f" },
+  { id: "gpt-4o-mini" as ModelId,     label: "GPT-4o mini",      sub: "OpenAI",     color: "#10a37f", dot: "#10a37f" },
+  { id: "gemini-2.5-flash" as ModelId,label: "Gemini 2.5 Flash", sub: "Google",     color: "#4285f4", dot: "#4285f4" },
+  { id: "claude-3.5-sonnet" as ModelId,label:"Claude Sonnet",    sub: "Anthropic",  color: "#d97706", dot: "#d97706" },
+  { id: "claude-3.5-haiku" as ModelId, label:"Claude Haiku",     sub: "Anthropic",  color: "#d97706", dot: "#d97706" },
 ];
 
-const STORAGE_KEY = "ec-chat-conversations";
-const ACTIVE_KEY = "ec-chat-active";
-const MODEL_KEY = "ec-chat-model";
+const STARTERS = [
+  { icon: Code,      label: "Kod yaz",        prompt: "Bana bir React component yaz:" },
+  { icon: PenTool,   label: "Metin üret",      prompt: "Bana profesyonel bir e-posta taslağı yaz:" },
+  { icon: BarChart3, label: "Analiz et",       prompt: "Şu konuyu derinlemesine analiz et:" },
+  { icon: Globe,     label: "Çeviri yap",      prompt: "Şu metni İngilizce'ye çevir:" },
+  { icon: Sparkles,  label: "Fikir üret",      prompt: "Şu konu için yaratıcı fikirler ver:" },
+  { icon: Hash,      label: "SEO içerik",      prompt: "Bu konu için SEO uyumlu blog başlıkları yaz:" },
+];
 
-function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+const SK = "ec_convs_v2";
+const AK = "ec_active_v2";
+const MK = "ec_model_v2";
 
-function getTextContent(msg: Message): string {
-  if (typeof msg.content === "string") return msg.content;
-  return msg.content.map(p => p.type === "text" ? (p.text || "") : "").join("");
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const getText = (m: Msg) =>
+  typeof m.content === "string" ? m.content : m.content.map(p => p.type === "text" ? p.text ?? "" : "").join("");
+
+function loadConvs(): Conv[] {
+  try { return JSON.parse(localStorage.getItem(SK) || "[]"); } catch { return []; }
+}
+function saveConvs(cs: Conv[]) {
+  localStorage.setItem(SK, JSON.stringify(cs.slice(0, 60)));
 }
 
-function loadConversations(): Conversation[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-  } catch { return []; }
+/* ─────────── Markdown ─────────── */
+function md(raw: string) {
+  let s = raw
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  // fenced code
+  s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, (_,lang,code)=>
+    `<pre class="cc"><code class="cl-${lang||"txt"}">${code.trim()}</code></pre>`);
+  // inline code
+  s = s.replace(/`([^`\n]+)`/g, `<code class="ci">$1</code>`);
+  // bold/italic
+  s = s.replace(/\*\*\*(.+?)\*\*\*/g,"<strong><em>$1</em></strong>");
+  s = s.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>");
+  s = s.replace(/\*(.+?)\*/g,"<em>$1</em>");
+  // headings
+  s = s.replace(/^### (.+)$/gm,"<h3>$1</h3>");
+  s = s.replace(/^## (.+)$/gm,"<h2>$1</h2>");
+  s = s.replace(/^# (.+)$/gm,"<h1>$1</h1>");
+  // hr
+  s = s.replace(/^---+$/gm,"<hr/>");
+  // lists
+  s = s.replace(/^[-*] (.+)$/gm,"<li>$1</li>");
+  s = s.replace(/^\d+\. (.+)$/gm,"<oli>$1</oli>");
+  // links + images
+  s = s.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,`<img src="$2" alt="$1" class="mdi"/>`);
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,`<a href="$2" target="_blank" rel="noopener" class="mdl">$1</a>`);
+  // blockquote
+  s = s.replace(/^> (.+)$/gm,"<blockquote>$1</blockquote>");
+  // paragraphs
+  s = s.split(/\n\n+/).map(block => {
+    if (/^<(pre|h[1-6]|hr|blockquote|ul|ol)/.test(block.trim())) return block;
+    const withBr = block.replace(/\n/g,"<br/>");
+    return `<p>${withBr}</p>`;
+  }).join("\n");
+  // wrap li
+  s = s.replace(/(<li>.*<\/li>)/gs, m => `<ul>${m}</ul>`);
+  s = s.replace(/(<oli>.*<\/oli>)/gs, m => `<ol>${m.replace(/<\/?oli>/g, t => t === "<oli>" ? "<li>" : "</li>")}</ol>`);
+  return s;
 }
 
-function saveConversations(convs: Conversation[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(convs.slice(0, 50)));
-}
-
-// ─── Markdown renderer (no external deps) ────────────────────────────────────
-function renderMarkdown(text: string): string {
-  return text
-    // Code blocks
-    .replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) =>
-      `<pre class="md-code"><code class="lang-${lang || 'text'}">${escHtml(code.trim())}</code></pre>`)
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>')
-    // Bold
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    // Italic
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    // Headers
-    .replace(/^### (.+)$/gm, '<h3 class="md-h3">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="md-h2">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="md-h1">$1</h1>')
-    // Unordered list
-    .replace(/^[*-] (.+)$/gm, '<li class="md-li">$1</li>')
-    .replace(/(<li class="md-li">[\s\S]+?<\/li>)/g, '<ul class="md-ul">$1</ul>')
-    // Ordered list
-    .replace(/^\d+\. (.+)$/gm, '<li class="md-oli">$1</li>')
-    .replace(/(<li class="md-oli">[\s\S]+?<\/li>)/g, '<ol class="md-ol">$1</ol>')
-    // Horizontal rule
-    .replace(/^---$/gm, '<hr class="md-hr"/>')
-    // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="md-link">$1</a>')
-    // Image markdown → actual img
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="md-img" />')
-    // Newlines
-    .replace(/\n\n/g, '</p><p class="md-p">')
-    .replace(/\n/g, '<br/>');
-}
-
-function escHtml(s: string) {
-  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-}
-
-// ─── Components ───────────────────────────────────────────────────────────────
-function ModelPill({ model, onSelect }: { model: Model; onSelect: () => void }) {
-  return (
-    <button
-      onClick={onSelect}
-      className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#2a2a2a] transition-colors text-left w-full"
-    >
-      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: model.color }} />
-      <div>
-        <div className="text-sm font-medium text-white">{model.label}</div>
-        <div className="text-xs text-[#888]">{model.desc}</div>
-      </div>
-      {model.vision && (
-        <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-[#1a1a2e] text-[#7c3aed] border border-[#7c3aed]/30">
-          vision
-        </span>
-      )}
-    </button>
-  );
-}
-
+/* ─────────── Copy button ─────────── */
 function CopyBtn({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
+  const [ok, setOk] = useState(false);
   return (
     <button
-      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-[#333] text-[#888] hover:text-white"
-      title="Kopyala"
+      onClick={() => { navigator.clipboard.writeText(text); setOk(true); setTimeout(()=>setOk(false),1800); }}
+      className="p-1.5 rounded-md text-[#555] hover:text-[#999] hover:bg-white/5 transition-all"
     >
-      {copied ? <Check size={14} /> : <Copy size={14} />}
+      {ok ? <Check size={13} className="text-green-400"/> : <Copy size={13}/>}
     </button>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-export default function ChatPage() {
-  const [conversations, setConversations] = useState<Conversation[]>(loadConversations);
-  const [activeId, setActiveId] = useState<string | null>(() => localStorage.getItem(ACTIVE_KEY));
-  const [selectedModel, setSelectedModel] = useState<string>(() => localStorage.getItem(MODEL_KEY) || "gpt-4o");
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [showModelPicker, setShowModelPicker] = useState(false);
-  const [showModeMenu, setShowModeMenu] = useState(false);
-  const [mode, setMode] = useState<"chat" | "image">("chat");
-  const [attachments, setAttachments] = useState<Array<{ type: "image" | "file"; data: string; name: string; fileText?: string }>>([]);
-  const [recording, setRecording] = useState(false);
-  const [sidebarSearch, setSidebarSearch] = useState("");
-  const [streamingText, setStreamingText] = useState("");
-
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const mediaRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-
-  const activeConv = conversations.find(c => c.id === activeId) || null;
-  const currentModel = MODELS.find(m => m.id === selectedModel) || MODELS[0];
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [activeConv?.messages, streamingText]);
-  useEffect(() => { saveConversations(conversations); }, [conversations]);
-  useEffect(() => { if (activeId) localStorage.setItem(ACTIVE_KEY, activeId); }, [activeId]);
-  useEffect(() => { localStorage.setItem(MODEL_KEY, selectedModel); }, [selectedModel]);
-
-  // Auto-resize textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + "px";
-    }
-  }, [input]);
-
-  const newConversation = useCallback(() => {
-    const conv: Conversation = {
-      id: genId(),
-      title: "Yeni Sohbet",
-      messages: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      model: selectedModel,
-    };
-    setConversations(prev => [conv, ...prev]);
-    setActiveId(conv.id);
-    setInput("");
-    setAttachments([]);
-  }, [selectedModel]);
-
-  const deleteConversation = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setConversations(prev => prev.filter(c => c.id !== id));
-    if (activeId === id) setActiveId(null);
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    for (const file of files) {
-      if (file.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          setAttachments(prev => [...prev, { type: "image", data: reader.result as string, name: file.name }]);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        // Parse file server-side
-        const fd = new FormData();
-        fd.append("file", file);
-        try {
-          const res = await fetch("/api/chat/parse-file", { method: "POST", body: fd });
-          const data = await res.json();
-          setAttachments(prev => [...prev, {
-            type: "file",
-            data: "",
-            name: file.name,
-            fileText: data.text || "[Dosya okunamadı]",
-          }]);
-        } catch {
-          setAttachments(prev => [...prev, { type: "file", data: "", name: file.name, fileText: "[Dosya yüklenemedi]" }]);
-        }
-      }
-    }
-    if (fileRef.current) fileRef.current.value = "";
-  };
-
-  const sendMessage = async () => {
-    if (!input.trim() && attachments.length === 0) return;
-    if (loading) return;
-
-    let convId = activeId;
-    let conv = conversations.find(c => c.id === convId);
-
-    // Create new conv if none active
-    if (!conv) {
-      const newConv: Conversation = {
-        id: genId(),
-        title: input.slice(0, 40) || "Yeni Sohbet",
-        messages: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        model: selectedModel,
-      };
-      conv = newConv;
-      convId = newConv.id;
-      setActiveId(convId);
-      setConversations(prev => [newConv, ...prev]);
-    }
-
-    // Build content
-    let userContent: string | MessagePart[];
-    const parts: MessagePart[] = [];
-
-    // Add file texts to message
-    const fileParts = attachments.filter(a => a.type === "file");
-    if (fileParts.length > 0) {
-      const fileContext = fileParts.map(f => `[Dosya: ${f.name}]\n${f.fileText}`).join("\n\n");
-      if (input.trim()) {
-        parts.push({ type: "text", text: `${input}\n\n${fileContext}` });
-      } else {
-        parts.push({ type: "text", text: `Bu dosyayı analiz et:\n\n${fileContext}` });
-      }
-    }
-
-    const imageParts = attachments.filter(a => a.type === "image");
-    imageParts.forEach(img => {
-      parts.push({ type: "image_url", image_url: { url: img.data } });
-    });
-
-    if (parts.length === 0) {
-      userContent = input;
-    } else if (parts.length === 1 && parts[0].type === "text" && imageParts.length === 0) {
-      userContent = parts[0].text!;
-    } else {
-      if (input.trim() && fileParts.length === 0) {
-        parts.unshift({ type: "text", text: input });
-      }
-      userContent = parts;
-    }
-
-    const userMsg: Message = {
-      id: genId(),
-      role: "user",
-      content: userContent,
-      timestamp: Date.now(),
-    };
-
-    setInput("");
-    setAttachments([]);
-    setLoading(true);
-    setStreamingText("");
-
-    const updatedMessages = [...conv.messages, userMsg];
-    updateConv(convId!, { messages: updatedMessages, updatedAt: Date.now() });
-
-    // Build API messages (last 20)
-    const apiMessages = updatedMessages.slice(-20).map(m => ({
-      role: m.role,
-      content: typeof m.content === "string" ? m.content : m.content,
-    }));
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages, model: selectedModel, mode }),
-      });
-
-      const data = await res.json();
-
-      if (data.error) throw new Error(data.error);
-
-      const assistantMsg: Message = {
-        id: genId(),
-        role: "assistant",
-        content: data.reply || "",
-        timestamp: Date.now(),
-        model: data.model,
-        imageUrl: data.imageUrl,
-      };
-
-      const finalMessages = [...updatedMessages, assistantMsg];
-      // Update title from first message
-      const title = typeof userMsg.content === "string"
-        ? userMsg.content.slice(0, 45)
-        : getTextContent(userMsg).slice(0, 45) || "Sohbet";
-
-      updateConv(convId!, {
-        messages: finalMessages,
-        updatedAt: Date.now(),
-        title: conv!.messages.length === 0 ? title : conv!.title,
-      });
-    } catch (e: any) {
-      const errMsg: Message = {
-        id: genId(),
-        role: "assistant",
-        content: `Hata: ${e.message}`,
-        timestamp: Date.now(),
-        error: true,
-      };
-      updateConv(convId!, { messages: [...updatedMessages, errMsg], updatedAt: Date.now() });
-    } finally {
-      setLoading(false);
-      setStreamingText("");
-    }
-  };
-
-  const updateConv = (id: string, updates: Partial<Conversation>) => {
-    setConversations(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      chunksRef.current = [];
-      mr.ondataavailable = e => chunksRef.current.push(e.data);
-      mr.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const fd = new FormData();
-        fd.append("audio", blob, "audio.webm");
-        try {
-          const res = await fetch("/api/chat/transcribe", { method: "POST", body: fd });
-          const data = await res.json();
-          if (data.text) setInput(prev => prev + (prev ? " " : "") + data.text);
-        } catch { }
-      };
-      mr.start();
-      mediaRef.current = mr;
-      setRecording(true);
-    } catch { }
-  };
-
-  const stopRecording = () => {
-    mediaRef.current?.stop();
-    setRecording(false);
-  };
-
-  const filteredConvs = conversations.filter(c =>
-    c.title.toLowerCase().includes(sidebarSearch.toLowerCase())
-  );
-
-  const groupedConvs = {
-    today: filteredConvs.filter(c => Date.now() - c.updatedAt < 86400000),
-    week: filteredConvs.filter(c => Date.now() - c.updatedAt >= 86400000 && Date.now() - c.updatedAt < 604800000),
-    older: filteredConvs.filter(c => Date.now() - c.updatedAt >= 604800000),
-  };
+/* ─────────── Message ─────────── */
+function Message({ msg, isLast }: { msg: Msg; isLast: boolean }) {
+  const isUser = msg.role === "user";
+  const text = getText(msg);
+  const images = typeof msg.content !== "string" ? msg.content.filter(p => p.type === "image_url") : [];
+  const files = typeof msg.content !== "string" ? msg.content.filter(p => p.type === "file") : [];
 
   return (
-    <div className="flex h-screen bg-[#0d0d0d] text-white overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
-      
-      {/* ── Sidebar ── */}
-      <aside
-        className="flex flex-col border-r border-[#1e1e1e] transition-all duration-300 flex-shrink-0"
-        style={{ width: sidebarOpen ? "260px" : "0px", overflow: "hidden" }}
-      >
-        <div className="flex flex-col h-full w-[260px]">
-          {/* Sidebar header */}
-          <div className="flex items-center justify-between px-3 pt-4 pb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-gradient-to-br from-[#7c3aed] to-[#4f46e5] flex items-center justify-center">
-                <Bot size={14} />
-              </div>
-              <span className="font-semibold text-sm">EÇ Agent</span>
+    <div className={`group flex gap-4 py-5 px-6 ${isUser ? "flex-row-reverse" : ""}`}
+      style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+
+      {/* Avatar */}
+      <div className="flex-shrink-0 mt-0.5">
+        {isUser
+          ? <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center shadow-lg shadow-purple-900/30">
+              <User size={14} className="text-white"/>
             </div>
-            <button
-              onClick={newConversation}
-              className="p-1.5 rounded-lg hover:bg-[#1e1e1e] text-[#888] hover:text-white transition-colors"
-              title="Yeni sohbet"
-            >
-              <Plus size={16} />
-            </button>
-          </div>
-
-          {/* Search */}
-          <div className="px-3 pb-2">
-            <div className="flex items-center gap-2 bg-[#1a1a1a] rounded-lg px-3 py-2">
-              <Search size={13} className="text-[#555]" />
-              <input
-                value={sidebarSearch}
-                onChange={e => setSidebarSearch(e.target.value)}
-                placeholder="Sohbetlerde ara..."
-                className="bg-transparent text-xs text-[#ccc] placeholder-[#555] outline-none flex-1"
-              />
+          : <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{background:"#1a1a1a",border:"1px solid #2a2a2a"}}>
+              <Bot size={14} className="text-violet-400"/>
             </div>
-          </div>
+        }
+      </div>
 
-          {/* Conversations */}
-          <div className="flex-1 overflow-y-auto px-2 pb-4">
-            {conversations.length === 0 && (
-              <div className="text-center text-[#444] text-xs py-8">
-                <MessageSquare size={20} className="mx-auto mb-2 opacity-50" />
-                Henüz sohbet yok
-              </div>
-            )}
-            
-            {groupedConvs.today.length > 0 && (
-              <ConvGroup label="Bugün" convs={groupedConvs.today} activeId={activeId} onSelect={setActiveId} onDelete={deleteConversation} />
-            )}
-            {groupedConvs.week.length > 0 && (
-              <ConvGroup label="Bu Hafta" convs={groupedConvs.week} activeId={activeId} onSelect={setActiveId} onDelete={deleteConversation} />
-            )}
-            {groupedConvs.older.length > 0 && (
-              <ConvGroup label="Daha Eski" convs={groupedConvs.older} activeId={activeId} onSelect={setActiveId} onDelete={deleteConversation} />
-            )}
-          </div>
-
-          {/* Sidebar footer */}
-          <div className="px-3 pb-4 border-t border-[#1e1e1e] pt-3">
-            <button
-              onClick={() => {
-                if (confirm("Tüm sohbetler silinsin mi?")) {
-                  setConversations([]);
-                  setActiveId(null);
-                }
-              }}
-              className="flex items-center gap-2 text-xs text-[#555] hover:text-[#999] transition-colors px-2 py-1 w-full"
-            >
-              <Trash2 size={13} />
-              Tümünü temizle
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* ── Main ── */}
-      <main className="flex flex-col flex-1 min-w-0">
-        
-        {/* Top bar */}
-        <header className="flex items-center gap-3 px-4 py-3 border-b border-[#1e1e1e] flex-shrink-0">
-          <button
-            onClick={() => setSidebarOpen(v => !v)}
-            className="p-1.5 rounded-lg hover:bg-[#1e1e1e] text-[#888] hover:text-white transition-colors"
-          >
-            {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-          </button>
-
-          <div className="flex-1 min-w-0">
-            <h1 className="text-sm font-medium truncate text-[#ccc]">
-              {activeConv ? activeConv.title : "EÇ Agent Chat"}
-            </h1>
-          </div>
-
-          {/* Model selector */}
-          <div className="relative">
-            <button
-              onClick={() => { setShowModelPicker(v => !v); setShowModeMenu(false); }}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#2a2a2a] hover:border-[#3a3a3a] bg-[#111] hover:bg-[#1a1a1a] transition-colors text-xs"
-            >
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: currentModel.color }} />
-              <span className="text-[#ccc] hidden sm:block">{currentModel.label}</span>
-              <ChevronDown size={12} className="text-[#555]" />
-            </button>
-
-            {showModelPicker && (
-              <div className="absolute right-0 top-full mt-1 w-56 bg-[#111] border border-[#2a2a2a] rounded-xl shadow-2xl z-50 p-1">
-                <div className="text-[10px] text-[#555] px-2 py-1 uppercase tracking-wider">Model seç</div>
-                {MODELS.map(m => (
-                  <ModelPill key={m.id} model={m} onSelect={() => { setSelectedModel(m.id); setShowModelPicker(false); }} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Mode selector */}
-          <div className="relative">
-            <button
-              onClick={() => { setShowModeMenu(v => !v); setShowModelPicker(false); }}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#2a2a2a] hover:border-[#3a3a3a] bg-[#111] hover:bg-[#1a1a1a] transition-colors text-xs"
-            >
-              {mode === "image" ? <Image size={13} className="text-[#f472b6]" /> : <Sparkles size={13} className="text-[#7c3aed]" />}
-              <span className="text-[#ccc] hidden sm:block">{mode === "image" ? "Görsel" : "Sohbet"}</span>
-              <ChevronDown size={12} className="text-[#555]" />
-            </button>
-
-            {showModeMenu && (
-              <div className="absolute right-0 top-full mt-1 w-44 bg-[#111] border border-[#2a2a2a] rounded-xl shadow-2xl z-50 p-1">
-                <button
-                  onClick={() => { setMode("chat"); setShowModeMenu(false); }}
-                  className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm hover:bg-[#1e1e1e] ${mode === "chat" ? "text-[#7c3aed]" : "text-[#ccc]"}`}
-                >
-                  <Sparkles size={13} /> Sohbet / Analiz
-                </button>
-                <button
-                  onClick={() => { setMode("image"); setShowModeMenu(false); }}
-                  className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm hover:bg-[#1e1e1e] ${mode === "image" ? "text-[#f472b6]" : "text-[#ccc]"}`}
-                >
-                  <Image size={13} /> Görsel Oluştur
-                </button>
-              </div>
-            )}
-          </div>
-        </header>
-
-        {/* Messages area */}
-        <div className="flex-1 overflow-y-auto" onClick={() => { setShowModelPicker(false); setShowModeMenu(false); }}>
-          {!activeConv || activeConv.messages.length === 0 ? (
-            <EmptyState model={currentModel} mode={mode} onPrompt={p => { setInput(p); textareaRef.current?.focus(); }} />
-          ) : (
-            <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-              {activeConv.messages.map(msg => (
-                <MessageBubble key={msg.id} msg={msg} />
-              ))}
-              {loading && <TypingIndicator model={currentModel} />}
-              <div ref={bottomRef} />
-            </div>
+      {/* Content */}
+      <div className={`flex-1 min-w-0 ${isUser ? "flex flex-col items-end" : ""}`}>
+        {/* Name + time */}
+        <div className={`flex items-center gap-2 mb-2 ${isUser ? "flex-row-reverse" : ""}`}>
+          <span className="text-[11px] font-semibold" style={{color: isUser ? "#a78bfa" : "#666"}}>
+            {isUser ? "Sen" : "EÇ Agent"}
+          </span>
+          <span className="text-[10px] text-[#333]">
+            {new Date(msg.ts).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})}
+          </span>
+          {msg.model && !isUser && (
+            <span className="text-[9px] text-[#333] px-1.5 py-0.5 rounded" style={{background:"#111",border:"1px solid #222"}}>
+              {msg.model.split("/").pop()}
+            </span>
           )}
         </div>
 
-        {/* Input area */}
-        <div className="flex-shrink-0 border-t border-[#1e1e1e] bg-[#0d0d0d] px-4 py-4">
-          <div className="max-w-3xl mx-auto">
-            
-            {/* Attachments */}
-            {attachments.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {attachments.map((att, i) => (
-                  <div key={i} className="flex items-center gap-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-1.5">
-                    {att.type === "image"
-                      ? <img src={att.data} className="w-5 h-5 rounded object-cover" />
-                      : <FileText size={14} className="text-[#7c3aed]" />
-                    }
-                    <span className="text-xs text-[#ccc] max-w-[120px] truncate">{att.name}</span>
-                    <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}>
-                      <X size={12} className="text-[#555] hover:text-white" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Mode banner */}
-            {mode === "image" && (
-              <div className="flex items-center gap-2 mb-2 px-1">
-                <Image size={13} className="text-[#f472b6]" />
-                <span className="text-xs text-[#f472b6]">Görsel oluşturma modu · DALL-E 3</span>
-              </div>
-            )}
-
-            {/* Textarea + actions */}
-            <div className="flex items-end gap-2 bg-[#111] border border-[#2a2a2a] rounded-2xl px-4 py-3 focus-within:border-[#3a3a3a] transition-colors">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={mode === "image" ? "Oluşturmak istediğin görseli açıkla..." : "Bir şey sor... (Shift+Enter yeni satır)"}
-                className="flex-1 bg-transparent text-[#e5e5e5] placeholder-[#444] outline-none resize-none text-sm leading-relaxed min-h-[24px] max-h-[200px]"
-                rows={1}
-                disabled={loading}
-              />
-
-              <div className="flex items-center gap-1 flex-shrink-0 pb-0.5">
-                {/* File upload */}
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  className="p-1.5 rounded-lg text-[#555] hover:text-[#ccc] hover:bg-[#1e1e1e] transition-colors"
-                  title="Dosya / Görsel yükle"
-                >
-                  <Paperclip size={16} />
-                </button>
-
-                {/* Voice */}
-                <button
-                  onClick={recording ? stopRecording : startRecording}
-                  className={`p-1.5 rounded-lg transition-colors ${recording ? "text-red-400 bg-red-500/10" : "text-[#555] hover:text-[#ccc] hover:bg-[#1e1e1e]"}`}
-                  title={recording ? "Dur" : "Sesli giriş"}
-                >
-                  {recording ? <MicOff size={16} /> : <Mic size={16} />}
-                </button>
-
-                {/* Send */}
-                <button
-                  onClick={sendMessage}
-                  disabled={loading || (!input.trim() && attachments.length === 0)}
-                  className="p-2 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Send size={14} />
-                </button>
-              </div>
-            </div>
-
-            <p className="text-center text-[10px] text-[#333] mt-2">
-              EÇ Agent · {currentModel.label} · Yanıtlar hatalı olabilir
-            </p>
+        {/* Attached images preview */}
+        {images.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {images.map((p,i) => (
+              <img key={i} src={p.image_url?.url} className="rounded-xl max-h-56 object-contain shadow-lg" style={{border:"1px solid #2a2a2a"}}/>
+            ))}
           </div>
-        </div>
-      </main>
+        )}
 
-      <input
-        ref={fileRef}
-        type="file"
-        multiple
-        accept="image/*,.pdf,.txt,.md,.csv,.json,.js,.ts,.py,.html,.css,.docx,.doc,.xlsx,.xls"
-        className="hidden"
-        onChange={handleFileUpload}
-      />
-    </div>
-  );
-}
+        {/* File chips */}
+        {files.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {files.map((p,i)=>(
+              <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[#aaa]" style={{background:"#161616",border:"1px solid #2a2a2a"}}>
+                <FileText size={12} className="text-violet-400"/>{p.fileName}
+              </div>
+            ))}
+          </div>
+        )}
 
-// ─── Sub-components ────────────────────────────────────────────────────────────
-function ConvGroup({ label, convs, activeId, onSelect, onDelete }: {
-  label: string;
-  convs: Conversation[];
-  activeId: string | null;
-  onSelect: (id: string) => void;
-  onDelete: (id: string, e: React.MouseEvent) => void;
-}) {
-  return (
-    <div className="mb-2">
-      <div className="text-[10px] text-[#444] uppercase tracking-wider px-2 py-1.5">{label}</div>
-      {convs.map(c => (
-        <button
-          key={c.id}
-          onClick={() => onSelect(c.id)}
-          className={`group flex items-center gap-2 w-full px-2 py-2 rounded-lg text-left transition-colors hover:bg-[#1a1a1a] ${activeId === c.id ? "bg-[#1e1e1e]" : ""}`}
-        >
-          <MessageSquare size={12} className="text-[#555] flex-shrink-0" />
-          <span className="text-xs text-[#aaa] truncate flex-1">{c.title}</span>
-          <button
-            onClick={(e) => onDelete(c.id, e)}
-            className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:text-red-400 text-[#555] transition-opacity"
-          >
-            <X size={11} />
-          </button>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function MessageBubble({ msg }: { msg: Message }) {
-  const isUser = msg.role === "user";
-  const text = getTextContent(msg);
-  const imageParts = typeof msg.content !== "string"
-    ? msg.content.filter(p => p.type === "image_url")
-    : [];
-
-  return (
-    <div className={`flex gap-3 group ${isUser ? "flex-row-reverse" : ""}`}>
-      {/* Avatar */}
-      <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5 ${isUser ? "bg-[#7c3aed]" : "bg-[#1e1e1e] border border-[#2a2a2a]"}`}>
-        {isUser ? <User size={14} /> : <Bot size={14} className="text-[#7c3aed]" />}
-      </div>
-
-      {/* Bubble */}
-      <div className={`max-w-[80%] min-w-0 ${isUser ? "items-end" : "items-start"} flex flex-col gap-1`}>
-        {imageParts.map((p, i) => (
-          <img key={i} src={p.image_url?.url} className="rounded-xl max-h-64 object-contain border border-[#2a2a2a]" />
-        ))}
-
+        {/* Text bubble */}
         {text && (
-          <div className={`relative rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-            isUser
-              ? "bg-[#7c3aed] text-white rounded-tr-sm"
-              : msg.error
-                ? "bg-red-900/20 border border-red-800/40 text-red-300 rounded-tl-sm"
-                : "bg-[#111] border border-[#1e1e1e] text-[#e5e5e5] rounded-tl-sm"
-          }`}>
+          <div className={`relative max-w-2xl ${isUser ? "text-right" : ""}`}>
             {isUser
-              ? <p className="whitespace-pre-wrap">{text}</p>
-              : <div
-                  className="md-content"
-                  dangerouslySetInnerHTML={{ __html: `<p class="md-p">${renderMarkdown(text)}</p>` }}
-                />
+              ? <div className="inline-block text-sm leading-relaxed whitespace-pre-wrap px-4 py-3 rounded-2xl rounded-tr-sm shadow-lg"
+                    style={{background:"linear-gradient(135deg,#6d28d9,#7c3aed)",color:"#f0f0f0",maxWidth:"520px",textAlign:"left"}}>
+                  {text}
+                </div>
+              : <div className={`text-sm leading-relaxed chat-md ${msg.err ? "text-red-400" : "text-[#d4d4d4]"}`}
+                    dangerouslySetInnerHTML={{__html: md(text)}}/>
             }
           </div>
         )}
 
         {/* Generated image */}
         {msg.imageUrl && (
-          <div className="relative group/img">
-            <img src={msg.imageUrl} className="rounded-xl max-w-sm border border-[#2a2a2a]" />
-            <a
-              href={msg.imageUrl}
-              download="generated.png"
-              target="_blank"
-              className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-lg opacity-0 group-hover/img:opacity-100 transition-opacity"
-            >
-              <Download size={13} />
+          <div className="mt-3 relative group/gi inline-block">
+            <img src={msg.imageUrl} className="rounded-2xl max-w-md shadow-2xl" style={{border:"1px solid #2a2a2a"}}/>
+            <a href={msg.imageUrl} download="image.png" target="_blank"
+              className="absolute top-2 right-2 p-2 rounded-xl opacity-0 group-hover/gi:opacity-100 transition-all"
+              style={{background:"rgba(0,0,0,0.7)",backdropFilter:"blur(8px)"}}>
+              <Download size={14}/>
             </a>
           </div>
         )}
 
-        {/* Footer */}
-        <div className={`flex items-center gap-2 ${isUser ? "flex-row-reverse" : ""}`}>
-          <span className="text-[10px] text-[#333]">
-            {new Date(msg.timestamp).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
-          </span>
-          {!isUser && <CopyBtn text={text} />}
-        </div>
+        {/* Action bar */}
+        {!isUser && text && (
+          <div className="flex items-center gap-0.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <CopyBtn text={text}/>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function TypingIndicator({ model }: { model: Model }) {
+/* ─────────── Typing ─────────── */
+function Typing() {
   return (
-    <div className="flex gap-3">
-      <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center bg-[#1e1e1e] border border-[#2a2a2a]">
-        <Bot size={14} className="text-[#7c3aed]" />
+    <div className="flex gap-4 py-5 px-6" style={{borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{background:"#1a1a1a",border:"1px solid #2a2a2a"}}>
+        <Bot size={14} className="text-violet-400"/>
       </div>
-      <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1.5">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#555] animate-bounce" style={{ animationDelay: "0ms" }} />
-        <span className="w-1.5 h-1.5 rounded-full bg-[#555] animate-bounce" style={{ animationDelay: "150ms" }} />
-        <span className="w-1.5 h-1.5 rounded-full bg-[#555] animate-bounce" style={{ animationDelay: "300ms" }} />
+      <div className="flex items-center gap-1 h-8">
+        {[0,150,300].map(d=>(
+          <span key={d} className="w-1.5 h-1.5 rounded-full animate-bounce" style={{background:"#444",animationDelay:`${d}ms`}}/>
+        ))}
       </div>
     </div>
   );
 }
 
-const QUICK_PROMPTS = [
-  { icon: "✍️", label: "Metin yaz", prompt: "Bana profesyonel bir e-posta taslağı yaz" },
-  { icon: "🔍", label: "Analiz et", prompt: "Bu konuyu detaylı analiz et:" },
-  { icon: "💡", label: "Fikir üret", prompt: "Şu konu için yaratıcı fikirler öner:" },
-  { icon: "🐛", label: "Kod düzelt", prompt: "Bu kodda hata var mı, düzelt:" },
-];
-
-function EmptyState({ model, mode, onPrompt }: { model: Model; mode: "chat" | "image"; onPrompt: (p: string) => void }) {
+/* ─────────── Sidebar conv item ─────────── */
+function ConvItem({ c, active, onClick, onDel }: {
+  c: Conv; active: boolean;
+  onClick: ()=>void; onDel: (e:React.MouseEvent)=>void;
+}) {
   return (
-    <div className="flex flex-col items-center justify-center h-full px-4 text-center select-none">
-      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#7c3aed] to-[#4f46e5] flex items-center justify-center mb-4 shadow-lg shadow-[#7c3aed]/20">
-        {mode === "image" ? <Image size={22} /> : <Bot size={22} />}
-      </div>
-      <h2 className="text-lg font-semibold mb-1">
-        {mode === "image" ? "Görsel Oluştur" : "EÇ Agent"}
-      </h2>
-      <p className="text-sm text-[#555] mb-8 max-w-xs">
-        {mode === "image"
-          ? "DALL-E 3 ile istediğin görseli oluştur. İstediğin kadar detaylı açıkla."
-          : `${model.label} ile sohbet et. Dosya yükle, görsel analiz et, kod yaz.`
+    <button onClick={onClick}
+      className="group flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-left transition-all"
+      style={{
+        background: active ? "rgba(124,58,237,0.12)" : "transparent",
+        border: active ? "1px solid rgba(124,58,237,0.25)" : "1px solid transparent",
+      }}>
+      <MessageSquare size={12} style={{color: active ? "#a78bfa" : "#3a3a3a", flexShrink:0}}/>
+      <span className="flex-1 truncate text-xs" style={{color: active ? "#c4b5fd" : "#666"}}>{c.title}</span>
+      <button onClick={onDel}
+        className="opacity-0 group-hover:opacity-100 p-0.5 rounded transition-opacity hover:text-red-400 text-[#444]">
+        <X size={10}/>
+      </button>
+    </button>
+  );
+}
+
+/* ─────────── Main ─────────── */
+export default function ChatPage() {
+  const [convs, setConvs] = useState<Conv[]>(loadConvs);
+  const [activeId, setActiveId] = useState<string|null>(()=>localStorage.getItem(AK));
+  const [model, setModel] = useState<ModelId>(()=>(localStorage.getItem(MK) as ModelId)||"gpt-4o");
+  const [mode, setMode] = useState<"chat"|"image">("chat");
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showModel, setShowModel] = useState(false);
+  const [q, setQ] = useState("");
+  const [atts, setAtts] = useState<{type:"image"|"file";data:string;name:string;fileText?:string}[]>([]);
+  const [rec, setRec] = useState(false);
+  const [convOpts, setConvOpts] = useState<string|null>(null);
+
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const mrRef = useRef<MediaRecorder|null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const activeConv = convs.find(c=>c.id===activeId)||null;
+  const curModel = MODELS.find(m=>m.id===model)||MODELS[0];
+  const filtered = convs.filter(c=>c.title.toLowerCase().includes(q.toLowerCase()));
+  const today = filtered.filter(c=>Date.now()-c.updatedAt<86400000);
+  const older = filtered.filter(c=>Date.now()-c.updatedAt>=86400000);
+
+  useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"})},[activeConv?.msgs, loading]);
+  useEffect(()=>{saveConvs(convs)},[convs]);
+  useEffect(()=>{if(activeId) localStorage.setItem(AK,activeId);},[activeId]);
+  useEffect(()=>{localStorage.setItem(MK,model);},[model]);
+
+  useEffect(()=>{
+    if(!taRef.current) return;
+    taRef.current.style.height="auto";
+    taRef.current.style.height=Math.min(taRef.current.scrollHeight,180)+"px";
+  },[input]);
+
+  const newConv = useCallback(()=>{
+    const c:Conv={id:uid(),title:"Yeni Sohbet",msgs:[],createdAt:Date.now(),updatedAt:Date.now()};
+    setConvs(p=>[c,...p]); setActiveId(c.id); setInput(""); setAtts([]);
+  },[]);
+
+  const delConv = (id:string,e:React.MouseEvent)=>{
+    e.stopPropagation();
+    setConvs(p=>p.filter(c=>c.id!==id));
+    if(activeId===id) setActiveId(null);
+  };
+
+  const upd = (id:string, changes:Partial<Conv>)=>{
+    setConvs(p=>p.map(c=>c.id===id?{...c,...changes}:c));
+  };
+
+  const onFile = async (e:React.ChangeEvent<HTMLInputElement>)=>{
+    const files = Array.from(e.target.files||[]);
+    for(const f of files){
+      if(f.type.startsWith("image/")){
+        const r=new FileReader();
+        r.onload=()=>setAtts(p=>[...p,{type:"image",data:r.result as string,name:f.name}]);
+        r.readAsDataURL(f);
+      } else {
+        const fd=new FormData(); fd.append("file",f);
+        try {
+          const res=await fetch("/api/chat/parse-file",{method:"POST",body:fd});
+          const d=await res.json();
+          setAtts(p=>[...p,{type:"file",data:"",name:f.name,fileText:d.text||"[okunamadı]"}]);
+        } catch {
+          setAtts(p=>[...p,{type:"file",data:"",name:f.name,fileText:"[yüklenemedi]"}]);
         }
-      </p>
+      }
+    }
+    if(fileRef.current) fileRef.current.value="";
+  };
 
-      {mode === "chat" && (
-        <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
-          {QUICK_PROMPTS.map((qp, i) => (
-            <button
-              key={i}
-              onClick={() => onPrompt(qp.prompt)}
-              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#111] border border-[#1e1e1e] hover:border-[#2a2a2a] hover:bg-[#161616] transition-colors text-left"
-            >
-              <span className="text-lg">{qp.icon}</span>
-              <span className="text-xs text-[#888]">{qp.label}</span>
-            </button>
-          ))}
+  const send = async (overrideInput?:string) => {
+    const txt = overrideInput ?? input;
+    if(!txt.trim() && atts.length===0) return;
+    if(loading) return;
+
+    let cid = activeId;
+    let conv = convs.find(c=>c.id===cid);
+    if(!conv){
+      const nc:Conv={id:uid(),title:txt.slice(0,42)||"Sohbet",msgs:[],createdAt:Date.now(),updatedAt:Date.now()};
+      conv=nc; cid=nc.id;
+      setActiveId(cid);
+      setConvs(p=>[nc,...p]);
+    }
+
+    const fileParts = atts.filter(a=>a.type==="file");
+    const imgParts  = atts.filter(a=>a.type==="image");
+
+    let content: string | Part[];
+    const parts: Part[] = [];
+
+    if(fileParts.length>0){
+      const ctx = fileParts.map(f=>`[Dosya: ${f.name}]\n${f.fileText}`).join("\n\n");
+      parts.push({type:"text", text: txt ? `${txt}\n\n${ctx}` : `Bu dosyayı analiz et:\n\n${ctx}`});
+    }
+    imgParts.forEach(img=>parts.push({type:"image_url",image_url:{url:img.data}}));
+
+    if(parts.length===0) content=txt;
+    else if(parts.length===1 && parts[0].type==="text" && imgParts.length===0) content=parts[0].text!;
+    else { if(txt.trim() && fileParts.length===0) parts.unshift({type:"text",text:txt}); content=parts; }
+
+    const userMsg:Msg={id:uid(),role:"user",content,ts:Date.now()};
+    setInput(""); setAtts([]); setLoading(true);
+
+    const newMsgs=[...conv.msgs, userMsg];
+    upd(cid!,{msgs:newMsgs,updatedAt:Date.now(),title:conv.msgs.length===0?(txt.slice(0,42)||"Sohbet"):conv.title});
+
+    const apiMsgs = newMsgs.slice(-20).map(m=>({role:m.role,content:m.content}));
+    try {
+      const res=await fetch("/api/chat",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({messages:apiMsgs,model,mode}),
+      });
+      const d=await res.json();
+      if(d.error) throw new Error(d.error);
+      const aMsg:Msg={id:uid(),role:"assistant",content:d.reply||"",ts:Date.now(),model:d.model,imageUrl:d.imageUrl};
+      upd(cid!,{msgs:[...newMsgs,aMsg],updatedAt:Date.now()});
+    } catch(e:any){
+      const eMsg:Msg={id:uid(),role:"assistant",content:`Hata: ${e.message}`,ts:Date.now(),err:true};
+      upd(cid!,{msgs:[...newMsgs,eMsg],updatedAt:Date.now()});
+    } finally { setLoading(false); }
+  };
+
+  const onKey=(e:React.KeyboardEvent)=>{
+    if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}
+  };
+
+  const startRec=async()=>{
+    try{
+      const s=await navigator.mediaDevices.getUserMedia({audio:true});
+      const mr=new MediaRecorder(s);
+      chunksRef.current=[];
+      mr.ondataavailable=e=>chunksRef.current.push(e.data);
+      mr.onstop=async()=>{
+        s.getTracks().forEach(t=>t.stop());
+        const blob=new Blob(chunksRef.current,{type:"audio/webm"});
+        const fd=new FormData(); fd.append("audio",blob,"audio.webm");
+        try{
+          const r=await fetch("/api/chat/transcribe",{method:"POST",body:fd});
+          const d=await r.json();
+          if(d.text) setInput(p=>p+(p?" ":"")+d.text);
+        }catch{}
+      };
+      mr.start(); mrRef.current=mr; setRec(true);
+    }catch{}
+  };
+  const stopRec=()=>{ mrRef.current?.stop(); setRec(false); };
+
+  return (
+    <>
+      <style>{`
+        :root { color-scheme: dark; }
+        body { background: #0a0a0a; margin: 0; }
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #222; border-radius: 99px; }
+        .chat-md p  { margin: 0 0 .7em; }
+        .chat-md p:last-child { margin-bottom: 0; }
+        .chat-md h1 { font-size:1.2em;font-weight:700;color:#fff;margin:.9em 0 .4em; }
+        .chat-md h2 { font-size:1.05em;font-weight:600;color:#eee;margin:.8em 0 .35em; }
+        .chat-md h3 { font-size:.95em;font-weight:600;color:#ddd;margin:.7em 0 .3em; }
+        .chat-md ul  { list-style:disc;padding-left:1.4em;margin:.4em 0; }
+        .chat-md ol  { list-style:decimal;padding-left:1.4em;margin:.4em 0; }
+        .chat-md li  { margin:.2em 0;color:#ccc; }
+        .chat-md hr  { border:none;border-top:1px solid #222;margin:1em 0; }
+        .chat-md blockquote { border-left:3px solid #7c3aed;padding-left:.9em;margin:.6em 0;color:#888;font-style:italic; }
+        .chat-md strong { color:#f0f0f0; }
+        .chat-md a.mdl { color:#818cf8;text-decoration:underline; }
+        .chat-md img.mdi { max-width:100%;border-radius:10px;border:1px solid #2a2a2a;margin:.4em 0; }
+        code.ci { background:#161616;border:1px solid #2a2a2a;border-radius:4px;padding:.12em .4em;font-family:'Fira Code',monospace;font-size:.82em;color:#f472b6; }
+        pre.cc { background:#0d0d0d;border:1px solid #1e1e1e;border-radius:12px;padding:1em 1.2em;overflow-x:auto;margin:.6em 0;font-family:'Fira Code',monospace;font-size:.78em;line-height:1.65;color:#a9b1d6; }
+        pre.cc code { background:none;border:none;padding:0;color:inherit;font-size:inherit; }
+        textarea { scrollbar-width: none; }
+        textarea::-webkit-scrollbar { display: none; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        .fade-up { animation: fadeUp .25s ease forwards; }
+      `}</style>
+
+      <div style={{display:"flex",height:"100vh",background:"#0a0a0a",fontFamily:"'Inter',system-ui,sans-serif",overflow:"hidden"}}>
+
+        {/* ══ Sidebar ══ */}
+        <div style={{
+          width: sidebarOpen ? 256 : 0,
+          flexShrink: 0,
+          overflow: "hidden",
+          transition: "width .25s ease",
+          borderRight: "1px solid #141414",
+          background: "#0d0d0d",
+          display: "flex",
+          flexDirection: "column",
+        }}>
+          <div style={{width:256,display:"flex",flexDirection:"column",height:"100%"}}>
+
+            {/* Logo */}
+            <div style={{padding:"16px 16px 12px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{
+                  width:30,height:30,borderRadius:8,
+                  background:"linear-gradient(135deg,#7c3aed,#4f46e5)",
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  boxShadow:"0 0 16px rgba(124,58,237,.35)"
+                }}>
+                  <Bot size={15} color="#fff"/>
+                </div>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#e5e5e5",letterSpacing:".04em"}}>EÇ AGENT</div>
+                  <div style={{fontSize:10,color:"#444"}}>AI Asistan</div>
+                </div>
+              </div>
+              <button onClick={newConv} style={{
+                width:28,height:28,borderRadius:8,border:"1px solid #1e1e1e",
+                background:"#111",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
+                color:"#666",transition:"all .15s"
+              }}
+                onMouseEnter={e=>(e.currentTarget.style.borderColor="#333",e.currentTarget.style.color="#ccc")}
+                onMouseLeave={e=>(e.currentTarget.style.borderColor="#1e1e1e",e.currentTarget.style.color="#666")}
+              >
+                <Plus size={13}/>
+              </button>
+            </div>
+
+            {/* Search */}
+            <div style={{padding:"0 12px 10px"}}>
+              <div style={{
+                display:"flex",alignItems:"center",gap:8,
+                background:"#111",border:"1px solid #1a1a1a",
+                borderRadius:10,padding:"7px 12px"
+              }}>
+                <Search size={12} color="#333"/>
+                <input value={q} onChange={e=>setQ(e.target.value)}
+                  placeholder="Ara..."
+                  style={{background:"transparent",border:"none",outline:"none",color:"#888",fontSize:12,width:"100%"}}/>
+              </div>
+            </div>
+
+            {/* Convs */}
+            <div style={{flex:1,overflowY:"auto",padding:"0 8px"}}>
+              {convs.length===0 && (
+                <div style={{textAlign:"center",padding:"40px 0",color:"#333",fontSize:11}}>
+                  <MessageSquare size={18} style={{margin:"0 auto 8px",display:"block",opacity:.5}}/>
+                  Henüz sohbet yok
+                </div>
+              )}
+              {today.length>0 && <>
+                <div style={{fontSize:10,color:"#333",letterSpacing:".06em",textTransform:"uppercase",padding:"8px 6px 4px"}}>Bugün</div>
+                {today.map(c=><ConvItem key={c.id} c={c} active={c.id===activeId} onClick={()=>setActiveId(c.id)} onDel={(e)=>delConv(c.id,e)}/>)}
+              </>}
+              {older.length>0 && <>
+                <div style={{fontSize:10,color:"#333",letterSpacing:".06em",textTransform:"uppercase",padding:"10px 6px 4px"}}>Önceki</div>
+                {older.map(c=><ConvItem key={c.id} c={c} active={c.id===activeId} onClick={()=>setActiveId(c.id)} onDel={(e)=>delConv(c.id,e)}/>)}
+              </>}
+            </div>
+
+            {/* Bottom */}
+            <div style={{padding:"12px",borderTop:"1px solid #141414"}}>
+              <button onClick={()=>{if(confirm("Tüm sohbetler silinsin mi?")){setConvs([]);setActiveId(null);}}}
+                style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",cursor:"pointer",color:"#333",fontSize:11,padding:"6px 8px",borderRadius:8,width:"100%",transition:"color .15s"}}
+                onMouseEnter={e=>e.currentTarget.style.color="#666"}
+                onMouseLeave={e=>e.currentTarget.style.color="#333"}>
+                <Trash2 size={12}/> Tümünü temizle
+              </button>
+            </div>
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* ══ Main ══ */}
+        <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden"}}>
+
+          {/* ── Header ── */}
+          <div style={{
+            display:"flex",alignItems:"center",gap:12,
+            padding:"12px 20px",
+            borderBottom:"1px solid #141414",
+            background:"rgba(10,10,10,.92)",
+            backdropFilter:"blur(12px)",
+            flexShrink:0,
+            zIndex:10,
+          }}>
+            <button onClick={()=>setSidebarOpen(v=>!v)} style={{
+              width:32,height:32,borderRadius:8,border:"1px solid #1e1e1e",
+              background:"#111",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
+              color:"#555",transition:"all .15s",flexShrink:0
+            }}
+              onMouseEnter={e=>(e.currentTarget.style.borderColor="#333",e.currentTarget.style.color="#ccc")}
+              onMouseLeave={e=>(e.currentTarget.style.borderColor="#1e1e1e",e.currentTarget.style.color="#555")}
+            >
+              <ChevronLeft size={14} style={{transform:sidebarOpen?"":"rotate(180deg)",transition:"transform .25s"}}/>
+            </button>
+
+            <span style={{flex:1,fontSize:13,fontWeight:500,color:"#888",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+              {activeConv ? activeConv.title : "Yeni Sohbet"}
+            </span>
+
+            {/* Mode toggle */}
+            <div style={{
+              display:"flex",alignItems:"center",
+              background:"#111",border:"1px solid #1e1e1e",
+              borderRadius:10,padding:3,gap:2,
+            }}>
+              {(["chat","image"] as const).map(m=>(
+                <button key={m} onClick={()=>setMode(m)} style={{
+                  display:"flex",alignItems:"center",gap:5,
+                  padding:"5px 10px",borderRadius:7,border:"none",cursor:"pointer",
+                  fontSize:11,fontWeight:500,transition:"all .15s",
+                  background: mode===m ? (m==="image"?"#1a0d2e":"#1a1a2e") : "transparent",
+                  color: mode===m ? (m==="image"?"#f472b6":"#a78bfa") : "#444",
+                }}>
+                  {m==="image" ? <ImageIcon size={12}/> : <Sparkles size={12}/>}
+                  {m==="image" ? "Görsel" : "Sohbet"}
+                </button>
+              ))}
+            </div>
+
+            {/* Model picker */}
+            <div style={{position:"relative"}}>
+              <button onClick={()=>setShowModel(v=>!v)} style={{
+                display:"flex",alignItems:"center",gap:7,
+                padding:"6px 12px",borderRadius:10,
+                border:"1px solid #1e1e1e",background:"#111",
+                cursor:"pointer",color:"#aaa",fontSize:11,transition:"all .15s"
+              }}
+                onMouseEnter={e=>e.currentTarget.style.borderColor="#333"}
+                onMouseLeave={e=>e.currentTarget.style.borderColor="#1e1e1e"}
+              >
+                <span style={{width:7,height:7,borderRadius:"50%",background:curModel.dot,flexShrink:0,boxShadow:`0 0 6px ${curModel.dot}88`}}/>
+                <span>{curModel.label}</span>
+                <ChevronDown size={11} style={{color:"#444"}}/>
+              </button>
+
+              {showModel && (
+                <div className="fade-up" style={{
+                  position:"absolute",right:0,top:"calc(100% + 6px)",
+                  width:220,background:"#0e0e0e",border:"1px solid #1e1e1e",
+                  borderRadius:14,zIndex:100,padding:6,
+                  boxShadow:"0 20px 60px rgba(0,0,0,.7)"
+                }}>
+                  <div style={{fontSize:10,color:"#333",letterSpacing:".06em",textTransform:"uppercase",padding:"4px 10px 6px"}}>Model Seç</div>
+                  {MODELS.map(m=>(
+                    <button key={m.id} onClick={()=>{setModel(m.id);setShowModel(false);}} style={{
+                      display:"flex",alignItems:"center",gap:10,width:"100%",
+                      padding:"8px 10px",borderRadius:9,border:"none",
+                      background: model===m.id ? "rgba(124,58,237,.1)" : "transparent",
+                      cursor:"pointer",transition:"background .12s",textAlign:"left"
+                    }}
+                      onMouseEnter={e=>{ if(model!==m.id) e.currentTarget.style.background="#151515"; }}
+                      onMouseLeave={e=>{ e.currentTarget.style.background=model===m.id?"rgba(124,58,237,.1)":"transparent"; }}
+                    >
+                      <span style={{width:8,height:8,borderRadius:"50%",background:m.dot,flexShrink:0,boxShadow:`0 0 5px ${m.dot}66`}}/>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:500,color: model===m.id ? "#c4b5fd" : "#ccc"}}>{m.label}</div>
+                        <div style={{fontSize:10,color:"#444"}}>{m.sub}</div>
+                      </div>
+                      {model===m.id && <Check size={12} style={{marginLeft:"auto",color:"#7c3aed"}}/>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Back to dashboard */}
+            <a href="/" style={{
+              display:"flex",alignItems:"center",gap:5,
+              padding:"6px 10px",borderRadius:10,
+              border:"1px solid #1e1e1e",background:"#111",
+              color:"#555",fontSize:11,textDecoration:"none",transition:"all .15s"
+            }}
+              onMouseEnter={e=>(e.currentTarget.style.borderColor="#333",e.currentTarget.style.color="#999")}
+              onMouseLeave={e=>(e.currentTarget.style.borderColor="#1e1e1e",e.currentTarget.style.color="#555")}
+            >
+              <ArrowLeft size={12}/><span className="hidden sm:inline">Panel</span>
+            </a>
+          </div>
+
+          {/* ── Messages ── */}
+          <div style={{flex:1,overflowY:"auto"}} onClick={()=>{setShowModel(false);}}>
+            {(!activeConv || activeConv.msgs.length===0) ? (
+              /* Welcome screen */
+              <div style={{
+                display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                height:"100%",padding:"40px 24px",textAlign:"center",
+                background:"radial-gradient(ellipse at 50% 30%, rgba(124,58,237,.06) 0%, transparent 65%)"
+              }}>
+                <div style={{
+                  width:56,height:56,borderRadius:16,
+                  background:"linear-gradient(135deg,#7c3aed,#4f46e5)",
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  boxShadow:"0 0 40px rgba(124,58,237,.3)",marginBottom:20
+                }}>
+                  {mode==="image" ? <ImageIcon size={24} color="#fff"/> : <Bot size={24} color="#fff"/>}
+                </div>
+                <h2 style={{fontSize:20,fontWeight:700,color:"#e5e5e5",margin:"0 0 8px"}}>
+                  {mode==="image" ? "Görsel Oluştur" : "EÇ Agent'e Sor"}
+                </h2>
+                <p style={{fontSize:13,color:"#444",margin:"0 0 32px",maxWidth:360,lineHeight:1.6}}>
+                  {mode==="image"
+                    ? "DALL-E 3 ile istediğin görseli oluştur. Ne kadar detaylı açıklarsan o kadar iyi sonuç."
+                    : `${curModel.label} ile sohbet et. Dosya analiz et, kod yaz, sorular sor.`}
+                </p>
+                {mode==="chat" && (
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,maxWidth:520,width:"100%"}}>
+                    {STARTERS.map((s,i)=>{
+                      const Icon=s.icon;
+                      return (
+                        <button key={i} onClick={()=>{setInput(s.prompt);taRef.current?.focus();}} style={{
+                          display:"flex",flexDirection:"column",alignItems:"flex-start",gap:6,
+                          padding:"14px 14px",borderRadius:14,
+                          border:"1px solid #1a1a1a",background:"#0d0d0d",
+                          cursor:"pointer",transition:"all .15s",textAlign:"left"
+                        }}
+                          onMouseEnter={e=>(e.currentTarget.style.borderColor="#2a2a2a",e.currentTarget.style.background="#111")}
+                          onMouseLeave={e=>(e.currentTarget.style.borderColor="#1a1a1a",e.currentTarget.style.background="#0d0d0d")}
+                        >
+                          <Icon size={14} color="#7c3aed"/>
+                          <span style={{fontSize:11,color:"#777",lineHeight:1.4}}>{s.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                {activeConv.msgs.map((m,i)=>(
+                  <Message key={m.id} msg={m} isLast={i===activeConv.msgs.length-1}/>
+                ))}
+                {loading && <Typing/>}
+                <div ref={bottomRef} style={{height:20}}/>
+              </div>
+            )}
+          </div>
+
+          {/* ── Input ── */}
+          <div style={{
+            flexShrink:0,padding:"16px 20px",
+            borderTop:"1px solid #141414",
+            background:"rgba(10,10,10,.95)",
+            backdropFilter:"blur(12px)",
+          }}>
+            <div style={{maxWidth:760,margin:"0 auto"}}>
+
+              {/* Attachments */}
+              {atts.length>0 && (
+                <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+                  {atts.map((a,i)=>(
+                    <div key={i} style={{
+                      display:"flex",alignItems:"center",gap:7,
+                      padding:"5px 10px 5px 7px",
+                      background:"#111",border:"1px solid #1e1e1e",borderRadius:10
+                    }}>
+                      {a.type==="image"
+                        ? <img src={a.data} style={{width:20,height:20,borderRadius:4,objectFit:"cover"}}/>
+                        : <FileText size={13} color="#7c3aed"/>
+                      }
+                      <span style={{fontSize:11,color:"#888",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span>
+                      <button onClick={()=>setAtts(p=>p.filter((_,j)=>j!==i))} style={{background:"none",border:"none",cursor:"pointer",padding:0,color:"#444",display:"flex",alignItems:"center"}}>
+                        <X size={11}/>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Image mode badge */}
+              {mode==="image" && (
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
+                  <ImageIcon size={11} color="#f472b6"/>
+                  <span style={{fontSize:11,color:"#f472b6"}}>Görsel oluşturma modu · DALL-E 3</span>
+                </div>
+              )}
+
+              {/* Input box */}
+              <div style={{
+                display:"flex",alignItems:"flex-end",gap:8,
+                background:"#111",border:"1px solid #1e1e1e",
+                borderRadius:16,padding:"10px 10px 10px 16px",
+                transition:"border-color .15s",
+              }}
+                onFocus={e=>e.currentTarget.style.borderColor="#2a2a2a"}
+                onBlur={e=>e.currentTarget.style.borderColor="#1e1e1e"}
+              >
+                <textarea ref={taRef} value={input}
+                  onChange={e=>setInput(e.target.value)} onKeyDown={onKey}
+                  placeholder={mode==="image" ? "Oluşturmak istediğin görseli detaylıca açıkla..." : "Mesaj yaz… (Shift+Enter = yeni satır)"}
+                  disabled={loading}
+                  rows={1}
+                  style={{
+                    flex:1,background:"transparent",border:"none",outline:"none",
+                    resize:"none",color:"#d4d4d4",fontSize:13,lineHeight:1.65,
+                    fontFamily:"inherit",minHeight:22,maxHeight:180,
+                    placeholder:"#333",
+                  }}
+                />
+
+                <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+                  <button onClick={()=>fileRef.current?.click()} title="Dosya / Görsel"
+                    style={{width:32,height:32,borderRadius:8,border:"none",background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#444",transition:"color .15s"}}
+                    onMouseEnter={e=>e.currentTarget.style.color="#888"}
+                    onMouseLeave={e=>e.currentTarget.style.color="#444"}
+                  >
+                    <Paperclip size={15}/>
+                  </button>
+
+                  <button onClick={rec?stopRec:startRecording} title={rec?"Dur":"Sesli giriş"}
+                    style={{width:32,height:32,borderRadius:8,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .15s",
+                      background:rec?"rgba(239,68,68,.15)":"transparent",
+                      color:rec?"#f87171":"#444",
+                    }}
+                    onMouseEnter={e=>{ if(!rec) e.currentTarget.style.color="#888"; }}
+                    onMouseLeave={e=>{ if(!rec) e.currentTarget.style.color="#444"; }}
+                  >
+                    {rec ? <MicOff size={15}/> : <Mic size={15}/>}
+                  </button>
+
+                  <button onClick={()=>send()} disabled={loading||(!input.trim()&&atts.length===0)}
+                    style={{
+                      width:34,height:34,borderRadius:10,border:"none",
+                      background: (loading||(!input.trim()&&atts.length===0)) ? "#1a1a1a" : "linear-gradient(135deg,#7c3aed,#6d28d9)",
+                      cursor: (loading||(!input.trim()&&atts.length===0)) ? "not-allowed" : "pointer",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      color: (loading||(!input.trim()&&atts.length===0)) ? "#333" : "#fff",
+                      transition:"all .15s",
+                      boxShadow: (loading||(!input.trim()&&atts.length===0)) ? "none" : "0 4px 12px rgba(124,58,237,.4)",
+                    }}
+                  >
+                    <Send size={14}/>
+                  </button>
+                </div>
+              </div>
+
+              <div style={{textAlign:"center",fontSize:10,color:"#222",marginTop:8}}>
+                EÇ Agent · {curModel.label} · Yanıtlar hatalı olabilir
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <input ref={fileRef} type="file" multiple
+        accept="image/*,.pdf,.txt,.md,.csv,.json,.js,.ts,.py,.html,.css,.docx,.doc,.xlsx"
+        style={{display:"none"}} onChange={onFile}/>
+    </>
   );
+
+  function startRecording() { startRec(); }
 }

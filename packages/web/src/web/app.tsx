@@ -10,17 +10,24 @@ import ChatPage from "./pages/chat";
 
 function App() {
   return (
-    <Layout>
-      <Switch>
-        <Route path="/" component={DashboardPage} />
-        <Route path="/chat" component={ChatPage} />
-        <Route path="/blog" component={BlogPage} />
-        <Route path="/seo" component={SeoPage} />
-        <Route path="/price" component={PricePage} />
-        <Route path="/image" component={ImagePage} />
-        <Route path="/settings" component={SettingsPage} />
-      </Switch>
-    </Layout>
+    <Switch>
+      {/* Chat is full-screen, NO Layout wrapper */}
+      <Route path="/chat" component={ChatPage} />
+
+      {/* Everything else inside Layout */}
+      <Route>
+        <Layout>
+          <Switch>
+            <Route path="/" component={DashboardPage} />
+            <Route path="/blog" component={BlogPage} />
+            <Route path="/seo" component={SeoPage} />
+            <Route path="/price" component={PricePage} />
+            <Route path="/image" component={ImagePage} />
+            <Route path="/settings" component={SettingsPage} />
+          </Switch>
+        </Layout>
+      </Route>
+    </Switch>
   );
 }
 
