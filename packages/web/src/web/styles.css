@@ -1,31 +1,34 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 :root {
-  --bg:        #080808;
-  --surface:   #0f0f0f;
-  --surface2:  #141414;
-  --border:    #1c1c1c;
-  --border2:   #242424;
-  --violet:    #7c3aed;
-  --violet-dim:#3b1f73;
-  --cyan:      #06d6a0;
-  --amber:     #f59e0b;
-  --green:     #10b981;
-  --red:       #ef4444;
-  --text:      #ececec;
-  --text-2:    #888;
-  --text-3:    #444;
+  --bg:        #000000;
+  --surface:   #050505;
+  --surface2:  #0a0a0a;
+  --border:    #0d2b1f;
+  --border2:   #0f3325;
+  --green:     #00ebb0;
+  --green-dim: #00b884;
+  --green-glow:#00ebb055;
+  --green-dark:#001a10;
+  --cyan:      #00ffcc;
+  --text:      #e8fdf5;
+  --text-2:    #4a7a65;
+  --text-3:    #1e3d2e;
   --radius:    12px;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
 
 body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  cursor: none;
   min-height: 100vh;
   overflow-x: hidden;
 }
@@ -33,59 +36,86 @@ body {
 /* Scrollbar */
 ::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #222; border-radius: 99px; }
+::-webkit-scrollbar-thumb { background: #00ebb033; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #00ebb066; }
 
 /* Inputs */
 input, textarea, select {
   font-family: inherit;
   color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border2);
+  background: #030f08;
+  border: 1px solid #0d2b1f;
   border-radius: 8px;
   outline: none;
-  transition: border-color .15s;
+  transition: border-color .2s, box-shadow .2s;
 }
-input:focus, textarea:focus { border-color: #333; }
-input::placeholder, textarea::placeholder { color: var(--text-3); }
+input:focus, textarea:focus, select:focus {
+  border-color: #00ebb044;
+  box-shadow: 0 0 0 3px #00ebb011, inset 0 0 20px #00ebb008;
+}
+input::placeholder, textarea::placeholder { color: #1e3d2e; }
 
-/* Animations */
-@keyframes fadeUp {
-  from { opacity:0; transform:translateY(10px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-@keyframes fadeIn {
-  from { opacity:0; } to { opacity:1; }
-}
-@keyframes spin { to { transform:rotate(360deg); } }
-@keyframes pulse {
-  0%,100% { opacity:1; }
-  50%      { opacity:.4; }
-}
-@keyframes bounce3 {
-  0%,100% { transform:translateY(0); }
-  50%      { transform:translateY(-4px); }
+/* Glitch keyframe */
+@keyframes glitch {
+  0%,100% { transform: translate(0); clip-path: none; }
+  20% { transform: translate(-2px,1px); clip-path: polygon(0 20%,100% 20%,100% 40%,0 40%); }
+  40% { transform: translate(2px,-1px); clip-path: polygon(0 60%,100% 60%,100% 80%,0 80%); }
+  60% { transform: translate(-1px,2px); clip-path: polygon(0 5%,100% 5%,100% 15%,0 15%); }
+  80% { transform: translate(1px,-2px); clip-path: polygon(0 75%,100% 75%,100% 90%,0 90%); }
 }
 
-.fade-up  { animation: fadeUp .3s ease both; }
-.fade-in  { animation: fadeIn .2s ease both; }
-.spin     { animation: spin 1s linear infinite; }
-.pulse    { animation: pulse 2s ease infinite; }
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
 
-/* Chat markdown */
-.chat-md { line-height: 1.75; color: #d4d4d4; }
-.chat-md p  { margin: 0 0 .65em; }
-.chat-md p:last-child { margin-bottom:0; }
-.chat-md h1 { font-size:1.2em;font-weight:700;color:#fff;margin:.9em 0 .4em; }
-.chat-md h2 { font-size:1.05em;font-weight:600;color:#eee;margin:.8em 0 .35em; }
-.chat-md h3 { font-size:.95em;font-weight:600;color:#ddd;margin:.7em 0 .3em; }
-.chat-md ul { list-style:disc;padding-left:1.4em;margin:.4em 0; }
-.chat-md ol { list-style:decimal;padding-left:1.4em;margin:.4em 0; }
-.chat-md li { margin:.2em 0;color:#ccc; }
-.chat-md hr { border:none;border-top:1px solid #222;margin:1em 0; }
-.chat-md blockquote { border-left:2px solid #7c3aed;padding-left:.9em;margin:.6em 0;color:#777;font-style:italic; }
-.chat-md strong { color:#f0f0f0; }
-.chat-md a { color:#818cf8;text-decoration:underline; }
-.chat-md img { max-width:100%;border-radius:10px;border:1px solid #1e1e1e;margin:.4em 0; }
-code.ci { background:#141414;border:1px solid #222;border-radius:4px;padding:.1em .4em;font-family:'JetBrains Mono',monospace;font-size:.82em;color:#f472b6; }
-pre.cc { background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:.9em 1.1em;overflow-x:auto;margin:.6em 0;font-family:'JetBrains Mono',monospace;font-size:.78em;line-height:1.65;color:#a9b1d6; }
-pre.cc code { background:none;border:none;padding:0;color:inherit;font-size:inherit; }
+@keyframes pulse-green {
+  0%,100% { opacity:1; box-shadow: 0 0 6px #00ebb0; }
+  50% { opacity:0.5; box-shadow: 0 0 12px #00ebb0, 0 0 24px #00ebb0; }
+}
+
+@keyframes float {
+  0%,100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes borderGlow {
+  0%,100% { border-color: #0d2b1f; }
+  50% { border-color: #00ebb033; box-shadow: 0 0 20px #00ebb011; }
+}
+
+@keyframes matrixChar {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes introSlide {
+  0% { opacity:0; transform: translateY(30px) scale(0.95); }
+  100% { opacity:1; transform: translateY(0) scale(1); }
+}
+
+@keyframes revealLeft {
+  from { opacity:0; transform: translateX(-30px); }
+  to { opacity:1; transform: translateX(0); }
+}
+
+.animate-fadeInUp { animation: fadeInUp 0.6s ease forwards; }
+.animate-revealLeft { animation: revealLeft 0.5s ease forwards; }
+.delay-1 { animation-delay: 0.1s; opacity: 0; }
+.delay-2 { animation-delay: 0.2s; opacity: 0; }
+.delay-3 { animation-delay: 0.3s; opacity: 0; }
+.delay-4 { animation-delay: 0.4s; opacity: 0; }
+.delay-5 { animation-delay: 0.5s; opacity: 0; }
