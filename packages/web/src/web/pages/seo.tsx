@@ -2,6 +2,19 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Send, Loader2 } from "lucide-react";
 
+const inputStyle = {
+  width: "100%",
+  padding: "10px 14px",
+  borderRadius: 8,
+  border: "1px solid #1c1c1c",
+  background: "#080808",
+  color: "#ececec",
+  fontSize: 13,
+  outline: "none",
+  boxSizing: "border-box" as const,
+  fontFamily: "inherit",
+};
+
 export default function SeoPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ url: "", targetKeywords: "", telegramChatId: "" });
@@ -27,79 +40,114 @@ export default function SeoPage() {
   });
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <div className="flex items-center gap-3 mb-8 animate-fade-up">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(6,214,160,0.15)" }}>
-          <Search size={20} style={{ color: "#06d6a0" }} />
+    <div style={{ padding: "32px 28px", maxWidth: 600, margin: "0 auto" }}>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            border: "1px solid #1c1c1c",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Search size={15} color="#888" />
+          </div>
+          <h1 style={{ fontSize: 17, fontWeight: 700, color: "#ececec", margin: 0 }}>SEO Analizi</h1>
         </div>
-        <div>
-          <h1 className="text-xl font-bold" style={{ fontFamily: "Syne, sans-serif" }}>SEO Analizi</h1>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Google'da 1. sıraya çıkma planı</p>
-        </div>
+        <p style={{ fontSize: 12, color: "#444", margin: 0 }}>Google'da 1. sıraya çıkma planı</p>
       </div>
 
-      <div className="rounded-xl border p-6 animate-fade-up" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
-        <div className="space-y-4">
+      <div style={{
+        background: "#0f0f0f",
+        border: "1px solid #1c1c1c",
+        borderRadius: 12,
+        padding: "22px",
+      }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
-            <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-muted)" }}>Web Sitesi URL *</label>
+            <label style={{ fontSize: 11, color: "#555", display: "block", marginBottom: 6, fontWeight: 500 }}>
+              Web Sitesi URL *
+            </label>
             <input
               value={form.url}
               onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
               placeholder="https://example.com/blog-yazisi"
-              className="w-full px-4 py-3 rounded-lg text-sm outline-none"
-              style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}
+              style={inputStyle}
             />
           </div>
 
           <div>
-            <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-muted)" }}>Hedef Anahtar Kelimeler</label>
+            <label style={{ fontSize: 11, color: "#555", display: "block", marginBottom: 6, fontWeight: 500 }}>
+              Hedef Anahtar Kelimeler
+            </label>
             <input
               value={form.targetKeywords}
               onChange={e => setForm(f => ({ ...f, targetKeywords: e.target.value }))}
-              placeholder="Örn: SEO ajansı istanbul, dijital pazarlama"
-              className="w-full px-4 py-3 rounded-lg text-sm outline-none"
-              style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}
+              placeholder="SEO ajansı istanbul, dijital pazarlama"
+              style={inputStyle}
             />
           </div>
 
           <div>
-            <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-muted)" }}>Telegram Chat ID (opsiyonel)</label>
+            <label style={{ fontSize: 11, color: "#555", display: "block", marginBottom: 6, fontWeight: 500 }}>
+              Telegram Chat ID <span style={{ color: "#333" }}>(opsiyonel)</span>
+            </label>
             <input
               value={form.telegramChatId}
               onChange={e => setForm(f => ({ ...f, telegramChatId: e.target.value }))}
               placeholder="123456789"
-              className="w-full px-4 py-3 rounded-lg text-sm outline-none"
-              style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}
+              style={inputStyle}
             />
           </div>
 
-          {/* Info box */}
-          <div className="rounded-lg p-3" style={{ background: "rgba(6,214,160,0.05)", border: "1px solid rgba(6,214,160,0.15)" }}>
-            <p className="text-xs" style={{ color: "#06d6a0" }}>
-              🔍 Ajan sayfanı analiz eder, teknik SEO sorunlarını tespit eder ve 1. sayfaya çıkma için adım adım plan hazırlar.
-            </p>
+          {/* Info */}
+          <div style={{
+            padding: "10px 12px",
+            borderRadius: 7,
+            background: "#080808",
+            border: "1px solid #1c1c1c",
+            fontSize: 12,
+            color: "#444",
+            lineHeight: 1.5,
+          }}>
+            Ajan sayfanı analiz eder, teknik SEO sorunlarını tespit eder ve 1. sayfaya çıkma için adım adım plan hazırlar.
           </div>
 
           <button
             onClick={() => createTask.mutate()}
             disabled={!form.url || createTask.isPending}
-            className="w-full py-3 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all"
             style={{
-              background: !form.url ? "var(--border)" : "linear-gradient(135deg, #06d6a0, #059669)",
-              color: !form.url ? "var(--text-muted)" : "white",
+              width: "100%",
+              padding: "11px",
+              borderRadius: 8,
+              border: "none",
+              background: !form.url ? "#141414" : "#7c3aed",
+              color: !form.url ? "#333" : "#fff",
+              fontSize: 13,
+              fontWeight: 600,
               cursor: !form.url ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
             }}
           >
             {createTask.isPending ? (
-              <><Loader2 size={16} className="animate-spin" /> Analiz başlatılıyor...</>
+              <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Analiz başlatılıyor...</>
             ) : (
-              <><Send size={16} /> SEO Analizi Başlat</>
+              <><Send size={14} /> SEO Analizi Başlat</>
             )}
           </button>
 
           {createTask.isSuccess && (
-            <div className="rounded-lg p-3 text-xs text-center animate-fade-up" style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)" }}>
-              ✓ SEO analizi başlatıldı! Dashboard'dan takip edebilirsin.
+            <div style={{
+              padding: "10px 14px",
+              borderRadius: 7,
+              background: "rgba(34,197,94,0.05)",
+              border: "1px solid rgba(34,197,94,0.15)",
+              fontSize: 12,
+              color: "#22c55e",
+              textAlign: "center" as const,
+            }}>
+              SEO analizi başlatıldı — Dashboard'dan takip et.
             </div>
           )}
         </div>

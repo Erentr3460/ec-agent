@@ -2,6 +2,19 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileText, Send, Loader2 } from "lucide-react";
 
+const inputStyle = {
+  width: "100%",
+  padding: "10px 14px",
+  borderRadius: 8,
+  border: "1px solid #1c1c1c",
+  background: "#080808",
+  color: "#ececec",
+  fontSize: 13,
+  outline: "none",
+  boxSizing: "border-box" as const,
+  fontFamily: "inherit",
+};
+
 export default function BlogPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
@@ -9,8 +22,6 @@ export default function BlogPage() {
     keywords: "",
     length: "orta",
     telegramChatId: "",
-    scheduled: false,
-    cronExpression: "",
   });
 
   const createTask = useMutation({
@@ -23,7 +34,6 @@ export default function BlogPage() {
           title: `Blog: ${form.topic}`,
           input: { topic: form.topic, keywords: form.keywords, length: form.length },
           telegramChatId: form.telegramChatId || null,
-          cronExpression: form.scheduled ? form.cronExpression : null,
         }),
       });
       return res.json();
@@ -35,70 +45,84 @@ export default function BlogPage() {
   });
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div style={{ padding: "32px 28px", maxWidth: 600, margin: "0 auto" }}>
       {/* Header */}
-      <div className="flex items-center gap-3 mb-8 animate-fade-up">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(124,58,237,0.15)" }}>
-          <FileText size={20} style={{ color: "#7c3aed" }} />
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            border: "1px solid #1c1c1c",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <FileText size={15} color="#7c3aed" />
+          </div>
+          <h1 style={{ fontSize: 17, fontWeight: 700, color: "#ececec", margin: 0 }}>Blog Yazarı</h1>
         </div>
-        <div>
-          <h1 className="text-xl font-bold" style={{ fontFamily: "Syne, sans-serif" }}>Blog Yazarı</h1>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>SEO uyumlu, AI destekli blog içeriği</p>
-        </div>
+        <p style={{ fontSize: 12, color: "#444", margin: 0 }}>SEO uyumlu, AI destekli blog içeriği üret</p>
       </div>
 
-      <div className="rounded-xl border p-6 animate-fade-up" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
-        <div className="space-y-4">
+      <div style={{
+        background: "#0f0f0f",
+        border: "1px solid #1c1c1c",
+        borderRadius: 12,
+        padding: "22px 22px",
+      }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Topic */}
           <div>
-            <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-muted)" }}>
+            <label style={{ fontSize: 11, color: "#555", display: "block", marginBottom: 6, fontWeight: 500 }}>
               Blog Konusu *
             </label>
             <input
               value={form.topic}
               onChange={e => setForm(f => ({ ...f, topic: e.target.value }))}
               placeholder="Örn: 2025 yılında en iyi SEO teknikleri"
-              className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-all"
-              style={{
-                background: "var(--bg)",
-                border: "1px solid var(--border)",
-                color: "var(--text)",
-              }}
+              style={inputStyle}
             />
           </div>
 
           {/* Keywords */}
           <div>
-            <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-muted)" }}>
+            <label style={{ fontSize: 11, color: "#555", display: "block", marginBottom: 6, fontWeight: 500 }}>
               Hedef Anahtar Kelimeler
             </label>
             <input
               value={form.keywords}
               onChange={e => setForm(f => ({ ...f, keywords: e.target.value }))}
-              placeholder="Örn: SEO, anahtar kelime araştırması, Google sıralaması"
-              className="w-full px-4 py-3 rounded-lg text-sm outline-none"
-              style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}
+              placeholder="SEO, anahtar kelime araştırması, Google sıralaması"
+              style={inputStyle}
             />
           </div>
 
           {/* Length */}
           <div>
-            <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-muted)" }}>
+            <label style={{ fontSize: 11, color: "#555", display: "block", marginBottom: 6, fontWeight: 500 }}>
               İçerik Uzunluğu
             </label>
-            <div className="flex gap-2">
-              {["kısa", "orta", "uzun"].map(len => (
+            <div style={{ display: "flex", gap: 8 }}>
+              {[
+                { key: "kısa", label: "Kısa", sub: "~500 kelime" },
+                { key: "orta", label: "Orta", sub: "~1000 kelime" },
+                { key: "uzun", label: "Uzun", sub: "~2000 kelime" },
+              ].map(opt => (
                 <button
-                  key={len}
-                  onClick={() => setForm(f => ({ ...f, length: len }))}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all capitalize"
+                  key={opt.key}
+                  onClick={() => setForm(f => ({ ...f, length: opt.key }))}
                   style={{
-                    background: form.length === len ? "rgba(124,58,237,0.2)" : "var(--bg)",
-                    border: `1px solid ${form.length === len ? "#7c3aed" : "var(--border)"}`,
-                    color: form.length === len ? "#7c3aed" : "var(--text-muted)",
+                    flex: 1,
+                    padding: "9px 8px",
+                    borderRadius: 7,
+                    border: `1px solid ${form.length === opt.key ? "#7c3aed" : "#1c1c1c"}`,
+                    background: form.length === opt.key ? "rgba(124,58,237,0.1)" : "#080808",
+                    color: form.length === opt.key ? "#7c3aed" : "#555",
+                    fontSize: 12,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    textAlign: "center" as const,
                   }}
                 >
-                  {len} {len === "kısa" ? "(~500)" : len === "orta" ? "(~1000)" : "(~2000)"}
+                  <div>{opt.label}</div>
+                  <div style={{ fontSize: 10, opacity: 0.7, marginTop: 1 }}>{opt.sub}</div>
                 </button>
               ))}
             </div>
@@ -106,15 +130,14 @@ export default function BlogPage() {
 
           {/* Telegram */}
           <div>
-            <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-muted)" }}>
-              Telegram Chat ID (opsiyonel)
+            <label style={{ fontSize: 11, color: "#555", display: "block", marginBottom: 6, fontWeight: 500 }}>
+              Telegram Chat ID <span style={{ color: "#333" }}>(opsiyonel)</span>
             </label>
             <input
               value={form.telegramChatId}
               onChange={e => setForm(f => ({ ...f, telegramChatId: e.target.value }))}
-              placeholder="Örn: 123456789"
-              className="w-full px-4 py-3 rounded-lg text-sm outline-none"
-              style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}
+              placeholder="123456789"
+              style={inputStyle}
             />
           </div>
 
@@ -122,23 +145,40 @@ export default function BlogPage() {
           <button
             onClick={() => createTask.mutate()}
             disabled={!form.topic || createTask.isPending}
-            className="w-full py-3 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all"
             style={{
-              background: !form.topic ? "var(--border)" : "linear-gradient(135deg, #7c3aed, #5b21b6)",
-              color: !form.topic ? "var(--text-muted)" : "white",
+              width: "100%",
+              padding: "11px",
+              borderRadius: 8,
+              border: "none",
+              background: !form.topic ? "#141414" : "#7c3aed",
+              color: !form.topic ? "#333" : "#fff",
+              fontSize: 13,
+              fontWeight: 600,
               cursor: !form.topic ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
             }}
           >
             {createTask.isPending ? (
-              <><Loader2 size={16} className="animate-spin" /> Ajan başlatılıyor...</>
+              <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Başlatılıyor...</>
             ) : (
-              <><Send size={16} /> Blog Yaz</>
+              <><Send size={14} /> Blog Yaz</>
             )}
           </button>
 
           {createTask.isSuccess && (
-            <div className="rounded-lg p-3 text-xs text-center animate-fade-up" style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)" }}>
-              ✓ Ajan başlatıldı! Dashboard'dan takip edebilirsin.
+            <div style={{
+              padding: "10px 14px",
+              borderRadius: 7,
+              background: "rgba(34,197,94,0.05)",
+              border: "1px solid rgba(34,197,94,0.15)",
+              fontSize: 12,
+              color: "#22c55e",
+              textAlign: "center" as const,
+            }}>
+              Ajan başlatıldı — Dashboard'dan takip et.
             </div>
           )}
         </div>

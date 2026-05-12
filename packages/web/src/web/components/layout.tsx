@@ -1,57 +1,89 @@
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import {
-  Bot, LayoutDashboard, Settings, Zap,
+  Bot, LayoutDashboard, Settings,
   FileText, Search, TrendingDown, ImageIcon, Menu, X, MessageCircle
 } from "lucide-react";
 
 const navItems = [
   { path: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/chat", icon: MessageCircle, label: "Chat", color: "#7c3aed" },
-  { path: "/blog", icon: FileText, label: "Blog Yazarı", color: "#7c3aed" },
-  { path: "/seo", icon: Search, label: "SEO Analizi", color: "#06d6a0" },
-  { path: "/price", icon: TrendingDown, label: "Fiyat Takibi", color: "#f59e0b" },
-  { path: "/image", icon: ImageIcon, label: "Görsel Üretici", color: "#10b981" },
+  { path: "/chat", icon: MessageCircle, label: "Chat" },
+  { path: "/blog", icon: FileText, label: "Blog Yazarı" },
+  { path: "/seo", icon: Search, label: "SEO Analizi" },
+  { path: "/price", icon: TrendingDown, label: "Fiyat Takibi" },
+  { path: "/image", icon: ImageIcon, label: "Görsel Üretici" },
   { path: "/settings", icon: Settings, label: "Ayarlar" },
 ];
 
-export function Layout({ children }: { children: React.ReactNode }) {
+const SidebarInner = ({ onNav }: { onNav?: () => void }) => {
   const [location] = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const SidebarContent = () => (
-    <>
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Logo */}
-      <div className="p-5 border-b" style={{ borderColor: "var(--border)" }}>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center relative" style={{ background: "linear-gradient(135deg, #7c3aed, #06d6a0)" }}>
-            <Bot size={18} className="text-white" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-400 border-2" style={{ borderColor: "var(--surface)" }}></span>
-          </div>
-          <div>
-            <h1 className="text-sm font-bold tracking-wider" style={{ fontFamily: "Syne, sans-serif", color: "var(--text)" }}>EÇ AGENT</h1>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>AI Görev Merkezi</p>
-          </div>
+      <div style={{
+        padding: "20px 20px 18px",
+        borderBottom: "1px solid #1c1c1c",
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+      }}>
+        <div style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          background: "#7c3aed",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}>
+          <Bot size={16} color="#fff" />
+        </div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#ececec", letterSpacing: "0.05em" }}>EÇ AGENT</div>
+          <div style={{ fontSize: 11, color: "#555", marginTop: 1 }}>AI Görev Merkezi</div>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-3 space-y-1">
-        {navItems.map(({ path, icon: Icon, label, color }) => {
+      <nav style={{ flex: 1, padding: "12px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
+        {navItems.map(({ path, icon: Icon, label }) => {
           const active = location === path;
           return (
             <Link key={path} to={path}>
               <div
-                onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all"
+                onClick={onNav}
                 style={{
-                  background: active ? "rgba(124,58,237,0.15)" : "transparent",
-                  borderLeft: active ? `2px solid ${color || "#7c3aed"}` : "2px solid transparent",
-                  color: active ? "var(--text)" : "var(--text-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  background: active ? "#141414" : "transparent",
+                  border: `1px solid ${active ? "#242424" : "transparent"}`,
+                  color: active ? "#ececec" : "#555",
+                  transition: "all 0.15s",
+                  userSelect: "none",
+                }}
+                onMouseEnter={e => {
+                  if (!active) (e.currentTarget as HTMLElement).style.color = "#888";
+                }}
+                onMouseLeave={e => {
+                  if (!active) (e.currentTarget as HTMLElement).style.color = "#555";
                 }}
               >
-                <Icon size={16} style={{ color: active ? (color || "#7c3aed") : "inherit" }} />
-                <span className="text-sm font-medium">{label}</span>
+                <Icon size={15} />
+                <span style={{ fontSize: 13, fontWeight: 500 }}>{label}</span>
+                {active && (
+                  <div style={{
+                    marginLeft: "auto",
+                    width: 5,
+                    height: 5,
+                    borderRadius: "50%",
+                    background: "#7c3aed",
+                  }} />
+                )}
               </div>
             </Link>
           );
@@ -59,69 +91,119 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t" style={{ borderColor: "var(--border)" }}>
-        <div className="flex items-center gap-2">
-          <Zap size={14} style={{ color: "#7c3aed" }} />
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>GPT-4o Aktif</span>
-        </div>
+      <div style={{
+        padding: "14px 20px",
+        borderTop: "1px solid #1c1c1c",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+      }}>
+        <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }} />
+        <span style={{ fontSize: 11, color: "#444" }}>GPT-4o · Online</span>
       </div>
-    </>
+    </div>
   );
+};
+
+export function Layout({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen mesh-bg">
-
+    <div style={{ display: "flex", minHeight: "100vh", background: "#080808" }}>
       {/* Mobile overlay */}
-      {sidebarOpen && (
+      {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 md:hidden"
-          onClick={() => setSidebarOpen(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.7)" }}
+          onClick={() => setOpen(false)}
         />
       )}
 
-      {/* Sidebar — desktop: always visible, mobile: slide in */}
-      <aside
-        className={`
-          fixed md:static z-50 md:z-auto
-          w-64 h-full md:h-auto min-h-screen
-          flex flex-col flex-shrink-0 border-r
-          transition-transform duration-300
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-        `}
-        style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-      >
-        {/* Mobile close button */}
-        <button
-          className="absolute top-4 right-4 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-          style={{ color: "var(--text-muted)" }}
-        >
-          <X size={20} />
-        </button>
+      {/* Sidebar desktop */}
+      <aside style={{
+        width: 220,
+        flexShrink: 0,
+        background: "#080808",
+        borderRight: "1px solid #1c1c1c",
+        display: "none",
+        flexDirection: "column",
+        position: "sticky",
+        top: 0,
+        height: "100vh",
+      }} className="sidebar-desktop">
+        <SidebarInner />
+      </aside>
 
-        <SidebarContent />
+      {/* Sidebar mobile */}
+      <aside style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: 220,
+        height: "100vh",
+        background: "#080808",
+        borderRight: "1px solid #1c1c1c",
+        zIndex: 50,
+        transform: open ? "translateX(0)" : "translateX(-100%)",
+        transition: "transform 0.25s ease",
+        display: "flex",
+        flexDirection: "column",
+      }} className="sidebar-mobile">
+        <button
+          onClick={() => setOpen(false)}
+          style={{
+            position: "absolute", top: 14, right: 14,
+            background: "none", border: "none", cursor: "pointer", color: "#555",
+          }}
+        >
+          <X size={18} />
+        </button>
+        <SidebarInner onNav={() => setOpen(false)} />
       </aside>
 
       {/* Main */}
-      <main className="flex-1 overflow-auto min-w-0">
-        {/* Mobile top bar */}
-        <div
-          className="flex items-center gap-3 p-4 border-b md:hidden sticky top-0 z-30"
-          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-        >
-          <button onClick={() => setSidebarOpen(true)} style={{ color: "var(--text-muted)" }}>
-            <Menu size={22} />
+      <main style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
+        {/* Mobile topbar */}
+        <div style={{
+          display: "none",
+          alignItems: "center",
+          gap: 12,
+          padding: "12px 16px",
+          borderBottom: "1px solid #1c1c1c",
+          background: "#080808",
+          position: "sticky",
+          top: 0,
+          zIndex: 30,
+        }} className="mobile-topbar">
+          <button
+            onClick={() => setOpen(true)}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "#555" }}
+          >
+            <Menu size={20} />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg, #7c3aed, #06d6a0)" }}>
-              <Bot size={14} className="text-white" />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{
+              width: 26, height: 26, borderRadius: 6, background: "#7c3aed",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <Bot size={13} color="#fff" />
             </div>
-            <span className="text-sm font-bold" style={{ fontFamily: "Syne, sans-serif", color: "var(--text)" }}>EÇ AGENT</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#ececec" }}>EÇ AGENT</span>
           </div>
         </div>
 
         {children}
       </main>
+
+      <style>{`
+        @media (min-width: 768px) {
+          .sidebar-desktop { display: flex !important; }
+          .sidebar-mobile { display: none !important; }
+        }
+        @media (max-width: 767px) {
+          .sidebar-desktop { display: none !important; }
+          .mobile-topbar { display: flex !important; }
+        }
+      `}</style>
     </div>
   );
 }

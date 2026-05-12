@@ -1,7 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { Activity, CheckCircle, Clock, AlertCircle, Zap, TrendingUp } from "lucide-react";
+import { Activity, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 import { TaskCard } from "../components/task-card";
+
+const agents = [
+  { label: "Chat", path: "/chat", desc: "GPT-4o ile sohbet" },
+  { label: "Blog Yazarı", path: "/blog", desc: "SEO uyumlu içerik" },
+  { label: "SEO Analizi", path: "/seo", desc: "Google sıralama planı" },
+  { label: "Fiyat Takibi", path: "/price", desc: "Trendyol / Amazon" },
+  { label: "Görsel Üretici", path: "/image", desc: "AI görsel üretimi" },
+];
 
 export default function DashboardPage() {
   const { data, isLoading, refetch } = useQuery({
@@ -19,74 +27,82 @@ export default function DashboardPage() {
   const pending = tasks.filter((t: any) => t.status === "pending").length;
   const errors = tasks.filter((t: any) => t.status === "error").length;
 
-  const agents = [
-    { label: "Chat", path: "/chat", color: "#7c3aed", desc: "GPT-4o ile sohbet et" },
-    { label: "Blog Yazarı", path: "/blog", color: "#6d28d9", desc: "SEO uyumlu blog içeriği" },
-    { label: "SEO Analizi", path: "/seo", color: "#06d6a0", desc: "1. sıraya çıkma stratejisi" },
-    { label: "Fiyat Takibi", path: "/price", color: "#f59e0b", desc: "Trendyol / Amazon takibi" },
-    { label: "Görsel Üretici", path: "/image", color: "#10b981", desc: "AI ile görsel üret" },
+  const stats = [
+    { label: "Çalışıyor", value: running, icon: Activity, dot: "#22c55e" },
+    { label: "Tamamlandı", value: done, icon: CheckCircle, dot: "#ececec" },
+    { label: "Bekliyor", value: pending, icon: Clock, dot: "#555" },
+    { label: "Hata", value: errors, icon: AlertCircle, dot: "#ef4444" },
   ];
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div style={{ padding: "32px 28px", maxWidth: 880, margin: "0 auto" }}>
       {/* Header */}
-      <div className="mb-8 animate-fade-up">
-        <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "Syne, sans-serif" }}>
-          Hoş geldin 👋
-        </h1>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Ajanlara görev ver, onlar halletsin.
-        </p>
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: "#ececec", margin: 0 }}>Dashboard</h1>
+        <p style={{ fontSize: 13, color: "#555", marginTop: 4 }}>Ajanlara görev ver, onlar halletsin.</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        {[
-          { label: "Çalışıyor", value: running, icon: Activity, color: "#06d6a0" },
-          { label: "Tamamlandı", value: done, icon: CheckCircle, color: "#10b981" },
-          { label: "Bekliyor", value: pending, icon: Clock, color: "#6b7280" },
-          { label: "Hata", value: errors, icon: AlertCircle, color: "#ef4444" },
-        ].map((stat, i) => (
-          <div
-            key={i}
-            className="rounded-xl p-4 border animate-fade-up"
-            style={{ background: "var(--surface)", borderColor: "var(--border)", animationDelay: `${i * 0.05}s` }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <stat.icon size={16} style={{ color: stat.color }} />
-              <span className="text-2xl font-bold" style={{ fontFamily: "Syne, sans-serif", color: stat.color }}>
-                {stat.value}
-              </span>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
+        gap: 12,
+        marginBottom: 32,
+      }} className="stats-grid">
+        {stats.map((s, i) => (
+          <div key={i} style={{
+            background: "#0f0f0f",
+            border: "1px solid #1c1c1c",
+            borderRadius: 10,
+            padding: "16px 18px",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <s.icon size={14} color="#444" />
+              <span style={{
+                fontSize: 22,
+                fontWeight: 700,
+                color: s.value > 0 ? s.dot : "#333",
+                fontVariantNumeric: "tabular-nums",
+              }}>{s.value}</span>
             </div>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{stat.label}</p>
+            <div style={{ fontSize: 11, color: "#444" }}>{s.label}</div>
           </div>
         ))}
       </div>
 
       {/* Agents */}
-      <div className="mb-8">
-        <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: "var(--text-muted)" }}>
-          <Zap size={14} style={{ color: "#7c3aed" }} />
-          AJANLAR
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {agents.map((agent, i) => (
-            <Link key={agent.path} to={agent.path}>
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "#333", letterSpacing: "0.08em", marginBottom: 12, textTransform: "uppercase" }}>
+          Ajanlar
+        </div>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(5, 1fr)",
+          gap: 10,
+        }} className="agents-grid">
+          {agents.map((a) => (
+            <Link key={a.path} to={a.path}>
               <div
-                className="rounded-xl p-4 border cursor-pointer transition-all hover:scale-[1.02] animate-fade-up"
                 style={{
-                  background: "var(--surface)",
-                  borderColor: "var(--border)",
-                  animationDelay: `${i * 0.05 + 0.2}s`,
+                  background: "#0f0f0f",
+                  border: "1px solid #1c1c1c",
+                  borderRadius: 10,
+                  padding: "16px 14px",
+                  cursor: "pointer",
+                  transition: "border-color 0.15s",
                 }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a"}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "#1c1c1c"}
               >
-                <div className="w-8 h-8 rounded-lg mb-3" style={{ background: `${agent.color}20` }}>
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div className="w-3 h-3 rounded-full" style={{ background: agent.color }} />
-                  </div>
-                </div>
-                <p className="text-sm font-semibold mb-1" style={{ fontFamily: "Syne, sans-serif" }}>{agent.label}</p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>{agent.desc}</p>
+                <div style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  background: "#7c3aed",
+                  marginBottom: 12,
+                }} />
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#ececec", marginBottom: 4 }}>{a.label}</div>
+                <div style={{ fontSize: 11, color: "#444", lineHeight: 1.4 }}>{a.desc}</div>
               </div>
             </Link>
           ))}
@@ -95,39 +111,59 @@ export default function DashboardPage() {
 
       {/* Recent Tasks */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: "var(--text-muted)" }}>
-            <TrendingUp size={14} style={{ color: "#06d6a0" }} />
-            SON GÖREVLER
-          </h2>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#333", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            Son Görevler
+          </div>
           <button
             onClick={() => refetch()}
-            className="text-xs px-3 py-1.5 rounded-lg transition-colors"
-            style={{ background: "var(--surface)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+            style={{
+              fontSize: 12,
+              padding: "5px 12px",
+              borderRadius: 6,
+              border: "1px solid #1c1c1c",
+              background: "none",
+              color: "#555",
+              cursor: "pointer",
+            }}
           >
             Yenile
           </button>
         </div>
 
         {isLoading ? (
-          <div className="space-y-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-24 rounded-xl animate-pulse" style={{ background: "var(--surface)" }} />
+              <div key={i} style={{ height: 72, borderRadius: 10, background: "#0f0f0f", border: "1px solid #1c1c1c", animation: "pulse 1.5s infinite" }} />
             ))}
           </div>
         ) : tasks.length === 0 ? (
-          <div className="rounded-xl border p-12 text-center" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
-            <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>Henüz görev yok.</p>
-            <p className="text-xs" style={{ color: "var(--text-subtle)" }}>Yukarıdaki ajanlardan birini seç ve başla.</p>
+          <div style={{
+            background: "#0f0f0f",
+            border: "1px solid #1c1c1c",
+            borderRadius: 10,
+            padding: "48px 24px",
+            textAlign: "center",
+          }}>
+            <p style={{ fontSize: 13, color: "#444", margin: 0 }}>Henüz görev yok.</p>
+            <p style={{ fontSize: 12, color: "#333", marginTop: 4 }}>Yukarıdan bir ajan seç ve başla.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {tasks.slice(0, 10).map((task: any) => (
               <TaskCard key={task.id} task={task} />
             ))}
           </div>
         )}
       </div>
+
+      <style>{`
+        @media (max-width: 900px) { .agents-grid { grid-template-columns: repeat(3, 1fr) !important; } }
+        @media (max-width: 600px) {
+          .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .agents-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
     </div>
   );
 }

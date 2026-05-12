@@ -3,16 +3,16 @@ import { ChevronDown, ChevronUp, RotateCcw, Trash2, FileText, Search, TrendingDo
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const agentConfig = {
-  blog: { label: "Blog Yazarı", icon: FileText, color: "#7c3aed", bg: "rgba(124,58,237,0.1)" },
-  seo: { label: "SEO Analizi", icon: Search, color: "#06d6a0", bg: "rgba(6,214,160,0.1)" },
-  price: { label: "Fiyat Takibi", icon: TrendingDown, color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
-  image: { label: "Görsel Üretici", icon: ImageIcon, color: "#10b981", bg: "rgba(16,185,129,0.1)" },
+  blog: { label: "Blog", icon: FileText, color: "#7c3aed" },
+  seo: { label: "SEO", icon: Search, color: "#888" },
+  price: { label: "Fiyat", icon: TrendingDown, color: "#888" },
+  image: { label: "Görsel", icon: ImageIcon, color: "#888" },
 };
 
 const statusConfig = {
-  pending: { label: "Bekliyor", color: "#6b7280" },
-  running: { label: "Çalışıyor", color: "#06d6a0" },
-  done: { label: "Tamamlandı", color: "#10b981" },
+  pending: { label: "Bekliyor", color: "#444" },
+  running: { label: "Çalışıyor", color: "#22c55e" },
+  done: { label: "Tamamlandı", color: "#555" },
   error: { label: "Hata", color: "#ef4444" },
 };
 
@@ -41,75 +41,128 @@ export function TaskCard({ task }: { task: any }) {
   });
 
   return (
-    <div
-      className="rounded-xl border transition-all animate-fade-up"
-      style={{ background: "var(--surface)", borderColor: "var(--border)" }}
-    >
-      <div className="p-4">
-        <div className="flex items-start gap-3">
-          {/* Agent icon */}
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: cfg.bg }}>
-            <Icon size={16} style={{ color: cfg.color }} />
+    <div style={{
+      background: "#0f0f0f",
+      border: "1px solid #1c1c1c",
+      borderRadius: 10,
+      overflow: "hidden",
+    }}>
+      <div style={{ padding: "14px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* Icon */}
+          <div style={{
+            width: 30,
+            height: 30,
+            borderRadius: 7,
+            border: "1px solid #1c1c1c",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}>
+            <Icon size={14} color="#444" />
           </div>
 
           {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: cfg.bg, color: cfg.color }}>
-                {cfg.label}
-              </span>
-              <div className="flex items-center gap-1.5">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+              <span style={{ fontSize: 11, color: "#555" }}>{cfg.label}</span>
+              <span style={{ fontSize: 11, color: "#2a2a2a" }}>·</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 {task.status === "running" && (
-                  <span className="w-1.5 h-1.5 rounded-full pulse-dot" style={{ background: status.color }} />
+                  <span style={{
+                    width: 5, height: 5, borderRadius: "50%",
+                    background: "#22c55e", display: "inline-block",
+                    animation: "pulse 1.5s infinite",
+                  }} />
                 )}
-                <span className="text-xs" style={{ color: status.color }}>{status.label}</span>
+                <span style={{ fontSize: 11, color: status.color }}>{status.label}</span>
               </div>
+              {task.cronExpression && (
+                <span style={{ fontSize: 10, color: "#7c3aed" }}>⟳ Zamanlanmış</span>
+              )}
             </div>
-            <h3 className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{task.title}</h3>
-            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+            <div style={{
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#ececec",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}>{task.title}</div>
+            <div style={{ fontSize: 11, color: "#333", marginTop: 1 }}>
               {new Date(task.createdAt).toLocaleString("tr-TR")}
-              {task.cronExpression && <span className="ml-2 text-xs" style={{ color: cfg.color }}>⟳ Zamanlanmış</span>}
-            </p>
+            </div>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-1.5">
+          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
             {(task.status === "error" || task.status === "done") && (
               <button
                 onClick={() => retryMutation.mutate()}
                 disabled={retryMutation.isPending}
-                className="w-7 h-7 rounded-md flex items-center justify-center transition-colors"
-                style={{ background: "var(--border)", color: "var(--text-muted)" }}
+                style={{
+                  width: 28, height: 28, borderRadius: 6,
+                  border: "1px solid #1c1c1c",
+                  background: "none",
+                  cursor: "pointer",
+                  color: "#444",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
                 title="Tekrar çalıştır"
               >
-                <RotateCcw size={13} />
+                <RotateCcw size={12} />
               </button>
             )}
             <button
               onClick={() => deleteMutation.mutate()}
               disabled={deleteMutation.isPending}
-              className="w-7 h-7 rounded-md flex items-center justify-center transition-colors"
-              style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}
+              style={{
+                width: 28, height: 28, borderRadius: 6,
+                border: "1px solid rgba(239,68,68,0.2)",
+                background: "none",
+                cursor: "pointer",
+                color: "#ef4444",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
               title="Sil"
             >
-              <Trash2 size={13} />
+              <Trash2 size={12} />
             </button>
             <button
               onClick={() => setExpanded(!expanded)}
-              className="w-7 h-7 rounded-md flex items-center justify-center"
-              style={{ background: "var(--border)", color: "var(--text-muted)" }}
+              style={{
+                width: 28, height: 28, borderRadius: 6,
+                border: "1px solid #1c1c1c",
+                background: "none",
+                cursor: "pointer",
+                color: "#444",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
             >
-              {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             </button>
           </div>
         </div>
 
-        {/* Logs preview */}
-        {logs.length > 0 && (
-          <div className="mt-3 rounded-lg p-3 overflow-hidden" style={{ background: "var(--bg)" }}>
-            {logs.slice(-3).map((log, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs mono animate-slide-in" style={{ color: "var(--text-muted)", marginBottom: "2px" }}>
-                <span style={{ color: "var(--text-subtle)" }}>{new Date(log.time).toLocaleTimeString("tr-TR")}</span>
+        {/* Live logs preview */}
+        {logs.length > 0 && task.status === "running" && (
+          <div style={{
+            marginTop: 10,
+            padding: "8px 10px",
+            borderRadius: 6,
+            background: "#080808",
+            border: "1px solid #1c1c1c",
+          }}>
+            {logs.slice(-2).map((log, i) => (
+              <div key={i} style={{
+                display: "flex", gap: 8, fontSize: 11,
+                fontFamily: "JetBrains Mono, monospace",
+                color: "#444",
+              }}>
+                <span style={{ color: "#2a2a2a", flexShrink: 0 }}>
+                  {new Date(log.time).toLocaleTimeString("tr-TR")}
+                </span>
                 <span>{log.message}</span>
               </div>
             ))}
@@ -117,52 +170,93 @@ export function TaskCard({ task }: { task: any }) {
         )}
       </div>
 
-      {/* Expanded result */}
-      {expanded && result && (
-        <div className="border-t px-4 pb-4 pt-3" style={{ borderColor: "var(--border)" }}>
-          {result.type === "image" && result.imageData && (
-            <div>
-              <p className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Üretilen Görsel</p>
-              <img src={result.imageData} alt={result.prompt} className="rounded-lg max-w-full max-h-64 object-contain" />
+      {/* Expanded */}
+      {expanded && (
+        <div style={{ borderTop: "1px solid #1c1c1c", padding: "14px 16px" }}>
+          {result?.type === "image" && result.imageData && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "#444", marginBottom: 8 }}>Üretilen Görsel</div>
+              <img
+                src={result.imageData}
+                alt={result.prompt}
+                style={{ borderRadius: 8, maxWidth: "100%", maxHeight: 280, objectFit: "contain", border: "1px solid #1c1c1c" }}
+              />
             </div>
           )}
-          {(result.type === "blog" || result.type === "seo") && result.content || result.report ? (
-            <div>
-              <p className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Sonuç</p>
-              <div
-                className="text-xs rounded-lg p-3 overflow-auto max-h-64 mono whitespace-pre-wrap"
-                style={{ background: "var(--bg)", color: "var(--text)", lineHeight: "1.6" }}
-              >
+          {(result?.content || result?.report) && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "#444", marginBottom: 8 }}>Sonuç</div>
+              <div style={{
+                fontSize: 12,
+                fontFamily: "JetBrains Mono, monospace",
+                padding: "10px 12px",
+                borderRadius: 6,
+                background: "#080808",
+                border: "1px solid #1c1c1c",
+                color: "#888",
+                lineHeight: 1.6,
+                whiteSpace: "pre-wrap",
+                maxHeight: 240,
+                overflow: "auto",
+              }}>
                 {result.content || result.report}
               </div>
             </div>
-          ) : null}
-          {result.type === "price" && (
-            <div>
-              <p className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Fiyat Analizi</p>
+          )}
+          {result?.type === "price" && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "#444", marginBottom: 8 }}>Fiyat Analizi</div>
               {result.currentPrice && (
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-lg font-bold" style={{ color: "#f59e0b", fontFamily: "Syne" }}>{result.currentPrice} TL</span>
+                <div style={{ marginBottom: 8, display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: "#ececec", fontVariantNumeric: "tabular-nums" }}>
+                    {result.currentPrice} TL
+                  </span>
                   {result.targetPrice && (
-                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>Hedef: {result.targetPrice} TL</span>
+                    <span style={{ fontSize: 11, color: "#444" }}>Hedef: {result.targetPrice} TL</span>
                   )}
                 </div>
               )}
-              <div
-                className="text-xs rounded-lg p-3 overflow-auto max-h-48 mono whitespace-pre-wrap"
-                style={{ background: "var(--bg)", color: "var(--text)", lineHeight: "1.6" }}
-              >
+              <div style={{
+                fontSize: 12,
+                fontFamily: "JetBrains Mono, monospace",
+                padding: "10px 12px",
+                borderRadius: 6,
+                background: "#080808",
+                border: "1px solid #1c1c1c",
+                color: "#888",
+                lineHeight: 1.6,
+                whiteSpace: "pre-wrap",
+                maxHeight: 200,
+                overflow: "auto",
+              }}>
                 {result.analysis}
               </div>
             </div>
           )}
+
           {/* All logs */}
-          <div className="mt-3">
-            <p className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Tüm Loglar</p>
-            <div className="rounded-lg p-3 max-h-32 overflow-auto" style={{ background: "var(--bg)" }}>
-              {logs.map((log, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs mono" style={{ color: "var(--text-muted)", marginBottom: "2px" }}>
-                  <span style={{ color: "#7c3aed" }}>{new Date(log.time).toLocaleTimeString("tr-TR")}</span>
+          <div>
+            <div style={{ fontSize: 11, color: "#333", marginBottom: 6 }}>Loglar</div>
+            <div style={{
+              padding: "8px 10px",
+              borderRadius: 6,
+              background: "#080808",
+              border: "1px solid #1c1c1c",
+              maxHeight: 120,
+              overflow: "auto",
+            }}>
+              {logs.length === 0 ? (
+                <div style={{ fontSize: 11, color: "#333", fontFamily: "JetBrains Mono, monospace" }}>Log yok.</div>
+              ) : logs.map((log, i) => (
+                <div key={i} style={{
+                  display: "flex", gap: 8, fontSize: 11,
+                  fontFamily: "JetBrains Mono, monospace",
+                  color: "#444",
+                  marginBottom: 2,
+                }}>
+                  <span style={{ color: "#7c3aed", flexShrink: 0 }}>
+                    {new Date(log.time).toLocaleTimeString("tr-TR")}
+                  </span>
                   <span>{log.message}</span>
                 </div>
               ))}
