@@ -27,41 +27,28 @@ chatRouter.post("/", async (c) => {
       return c.json({ error: "messages required" }, 400);
     }
 
-    // IMAGE GENERATION MODE
+    // IMAGE GENERATION MODE — Gemini Pro Image via gateway
     if (mode === "image") {
       const lastMsg = messages[messages.length - 1];
       const prompt = typeof lastMsg.content === "string" ? lastMsg.content : lastMsg.content?.[0]?.text || "";
 
       try {
-        const gatewayUrl = process.env.AI_GATEWAY_BASE_URL || "https://api.runable.com/api/gateway/v3/ai";
-        const apiKey = process.env.AI_GATEWAY_API_KEY || "";
-
-        const res = await fetch(`${gatewayUrl}/images/generations`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: "dall-e-3",
-            prompt,
-            n: 1,
-            size: "1024x1024",
-          }),
+        const { files } = await generateText({
+          model: gateway("google/gemini-3-pro-image"),
+          providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } },
+          prompt: `Generate an image: ${prompt}`,
         });
 
-        if (!res.ok) {
-          const err = await res.text();
-          return c.json({ error: `Görsel oluşturulamadı: ${err}` }, 500);
+        if (files && files.length > 0) {
+          const file = files[0]!;
+          const base64 = Buffer.from(file.uint8Array).toString("base64");
+          const dataUrl = `data:${file.mediaType};base64,${base64}`;
+          return c.json({ reply: "Görsel oluşturuldu ✓", imageUrl: dataUrl });
+        } else {
+          throw new Error("Görsel dosyası üretilemedi");
         }
-
-        const data: any = await res.json();
-        const imageUrl = data?.data?.[0]?.url || data?.data?.[0]?.b64_json;
-        if (!imageUrl) return c.json({ error: "Görsel URL alınamadı" }, 500);
-
-        return c.json({ reply: `![Generated Image](${imageUrl})`, imageUrl });
       } catch (e: any) {
-        return c.json({ error: `Görsel hatası: ${e.message}` }, 500);
+        return c.json({ error: `Görsel oluşturulamadı: ${e.message}` }, 500);
       }
     }
 
