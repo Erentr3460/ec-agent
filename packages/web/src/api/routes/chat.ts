@@ -159,6 +159,74 @@ chatRouter.post("/parse-file", async (c) => {
   }
 });
 
+// URL fetch endpoint — scrape web page content
+chatRouter.post("/fetch-url", async (c) => {
+  try {
+    const { url } = await c.req.json();
+    if (!url || typeof url !== "string") return c.json({ error: "url required" }, 400);
+
+    // Validate URL
+    let parsed: URL;
+    try { parsed = new URL(url); } catch { return c.json({ error: "Geçersiz URL" }, 400); }
+    if (!["http:", "https:"].includes(parsed.protocol)) return c.json({ error: "Sadece http/https" }, 400);
+
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; ECAgent/1.0)",
+        "Accept": "text/html,application/xhtml+xml,*/*",
+        "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
+      },
+      signal: AbortSignal.timeout(12000),
+    });
+
+    if (!res.ok) return c.json({ error: `Sayfa alınamadı: HTTP ${res.status}` }, 400);
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("text/html") && !contentType.includes("text/plain") && !contentType.includes("application/xhtml")) {
+      return c.json({ error: "Desteklenmeyen içerik tipi" }, 400);
+    }
+
+    const html = await res.text();
+
+    // Strip HTML tags, extract readable text
+    let text = html
+      // Remove scripts, styles, nav, footer, header noise
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<nav[\s\S]*?<\/nav>/gi, " ")
+      .replace(/<footer[\s\S]*?<\/footer>/gi, " ")
+      .replace(/<header[\s\S]*?<\/header>/gi, " ")
+      .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+      // Convert block tags to newlines
+      .replace(/<\/(p|div|li|h[1-6]|br|tr|article|section|blockquote)>/gi, "\n")
+      // Strip remaining tags
+      .replace(/<[^>]+>/g, " ")
+      // Decode HTML entities
+      .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+      .replace(/&[a-z]+;/gi, " ")
+      // Collapse whitespace
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+    // Extract title
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].trim() : parsed.hostname;
+
+    // Limit content size
+    const MAX = 12000;
+    const truncated = text.length > MAX;
+    if (truncated) text = text.slice(0, MAX) + "\n\n[... içerik kısaltıldı]";
+
+    return c.json({ title, text, url, truncated, chars: text.length });
+  } catch (e: any) {
+    console.error("Fetch URL error:", e);
+    if (e.name === "TimeoutError") return c.json({ error: "Bağlantı zaman aşımı (12s)" }, 408);
+    return c.json({ error: e.message || "URL içeriği alınamadı" }, 500);
+  }
+});
+
 // Transcribe endpoint  
 chatRouter.post("/transcribe", async (c) => {
   try {

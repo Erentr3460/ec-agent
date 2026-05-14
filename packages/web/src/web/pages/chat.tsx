@@ -4,8 +4,26 @@ import {
   Plus, MessageSquare, ChevronLeft, Image as ImageIcon,
   Copy, Check, Sparkles, FileText, ChevronDown,
   Download, Search, ArrowLeft,
-  Code, Globe, PenTool, BarChart3, Hash
+  Code, Globe, PenTool, BarChart3, Hash, LinkIcon, Loader2
 } from "lucide-react";
+
+/* ─────────── URL utils ─────────── */
+const URL_REGEX = /https?:\/\/[^\s"'<>()]+/g;
+function extractUrls(text: string): string[] {
+  return [...new Set(text.match(URL_REGEX) || [])];
+}
+async function fetchUrlContent(url: string): Promise<{ title: string; text: string; url: string; error?: string }> {
+  try {
+    const res = await fetch("/api/chat/fetch-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    return await res.json();
+  } catch {
+    return { title: url, text: "", url, error: "Ağ hatası" };
+  }
+}
 
 /* ─────────── Types ─────────── */
 interface Part {
@@ -336,6 +354,7 @@ export default function ChatPage() {
   const [q, setQ]                 = useState("");
   const [atts, setAtts]           = useState<{type:"image"|"file";data:string;name:string;fileText?:string}[]>([]);
   const [rec, setRec]             = useState(false);
+  const [fetchingUrls, setFetchingUrls] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const taRef     = useRef<HTMLTextAreaElement>(null);
@@ -409,18 +428,38 @@ export default function ChatPage() {
       setConvs(p=>[nc,...p]);
     }
 
+    // ── URL Detection & Fetch ──
+    const urls = extractUrls(txt);
+    let urlContext = "";
+    if(urls.length > 0) {
+      setFetchingUrls(true);
+      const results = await Promise.all(urls.slice(0,3).map(fetchUrlContent));
+      setFetchingUrls(false);
+      const fetched = results.filter(r => r.text && !r.error);
+      if(fetched.length > 0) {
+        urlContext = "\n\n" + fetched.map(r =>
+          `[Web Sayfası: ${r.title}]\nURL: ${r.url}\n\n${r.text}`
+        ).join("\n\n---\n\n");
+      }
+    }
+
     const fileParts = atts.filter(a=>a.type==="file");
     const imgParts  = atts.filter(a=>a.type==="image");
     let content: string | Part[];
     const parts: Part[] = [];
+
+    // Combine text with URL content + file content
+    const fullText = txt + urlContext;
     if(fileParts.length>0){
       const ctx = fileParts.map(f=>`[Dosya: ${f.name}]\n${f.fileText}`).join("\n\n");
-      parts.push({type:"text", text: txt ? `${txt}\n\n${ctx}` : `Bu dosyayı analiz et:\n\n${ctx}`});
+      parts.push({type:"text", text: fullText ? `${fullText}\n\n${ctx}` : `Bu dosyayı analiz et:\n\n${ctx}`});
+    } else if(urlContext) {
+      parts.push({type:"text", text: fullText});
     }
     imgParts.forEach(img=>parts.push({type:"image_url",image_url:{url:img.data}}));
     if(parts.length===0) content=txt;
     else if(parts.length===1 && parts[0].type==="text" && imgParts.length===0) content=parts[0].text!;
-    else { if(txt.trim() && fileParts.length===0) parts.unshift({type:"text",text:txt}); content=parts; }
+    else { if(txt.trim() && fileParts.length===0 && !urlContext) parts.unshift({type:"text",text:txt}); content=parts; }
 
     const userMsg:Msg = {id:uid(),role:"user",content,ts:Date.now()};
     setInput(""); setAtts([]); setLoading(true);
@@ -513,6 +552,7 @@ export default function ChatPage() {
         }
         pre.cc code { background:none;border:none;padding:0;color:inherit;font-size:inherit; }
 
+        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         @keyframes typingBounce {
           0%,100%{transform:translateY(0);opacity:.4}
           50%{transform:translateY(-5px);opacity:1}
@@ -827,7 +867,7 @@ export default function ChatPage() {
             ) : (
               <div>
                 {activeConv.msgs.map((m,i)=>(
-                  <Message key={m.id} msg={m} isLast={i===activeConv.msgs.length-1}/>
+                  <Message key={m.id} msg={m}/>
                 ))}
                 {loading && <Typing/>}
                 <div ref={bottomRef} style={{height:20}}/>
@@ -872,6 +912,24 @@ export default function ChatPage() {
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
                   <ImageIcon size={11} style={{color:"#00ebb0"}}/>
                   <span style={{fontSize:10,color:"#00ebb0",fontFamily:"'JetBrains Mono',monospace"}}>// görsel modu · DALL-E 3</span>
+                </div>
+              )}
+
+              {/* URL fetch badge */}
+              {fetchingUrls && (
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,padding:"6px 10px",borderRadius:8,background:"rgba(0,235,176,.06)",border:"1px solid #0d2b1f"}}>
+                  <Loader2 size={11} style={{color:"#00ebb0",animation:"spin .8s linear infinite"}}/>
+                  <span style={{fontSize:10,color:"#00ebb0",fontFamily:"'JetBrains Mono',monospace"}}>// url içeriği okunuyor...</span>
+                </div>
+              )}
+
+              {/* Detected URLs preview */}
+              {!fetchingUrls && input && extractUrls(input).length > 0 && (
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
+                  <LinkIcon size={10} style={{color:"#2a5a45"}}/>
+                  <span style={{fontSize:10,color:"#2a5a45",fontFamily:"'JetBrains Mono',monospace"}}>
+                    // {extractUrls(input).length} url algılandı — gönderilince okunacak
+                  </span>
                 </div>
               )}
 
